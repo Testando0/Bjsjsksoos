@@ -11,7 +11,7 @@ const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 })
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
 
-const db = new sqlite3.Database('./red_protocol_v20.db');
+const db = new sqlite3.Database('./red_protocol_v21.db');
 
 db.serialize(() => {
     db.run("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, avatar TEXT, bio TEXT)");
@@ -26,8 +26,7 @@ io.on('connection', (socket) => {
     
     socket.on('send_msg', (d) => {
         const target = online[d.r];
-        db.run("INSERT INTO messages (s, r, c, type, status) VALUES (?, ?, ?, ?, ?)", [d.s, d.r, d.c, d.type, target ? 1 : 0], function(err) {
-            if (err) return;
+        db.run("INSERT INTO messages (s, r, c, type, status) VALUES (?, ?, ?, ?, ?)", [d.s, d.r, d.c, d.type, target ? 1 : 0], function() {
             db.get("SELECT *, strftime('%H:%M', time) as f_time FROM messages WHERE id = ?", [this.lastID], (err, row) => {
                 if(target) io.to(target).emit('new_msg', row);
                 socket.emit('msg_sent_ok', row);
@@ -43,10 +42,8 @@ io.on('connection', (socket) => {
 });
 
 app.post('/register', async (req, res) => {
-    const { username, password } = req.body;
-    if(!username || !password) return res.status(400).send();
-    const h = await bcrypt.hash(password, 10);
-    db.run("INSERT INTO users (username, password, bio, avatar) VALUES (?, ?, 'Red Protocol Active', '')", [username, h], (e) => e ? res.status(400).send() : res.json({ok:true}));
+    const h = await bcrypt.hash(req.body.password, 10);
+    db.run("INSERT INTO users (username, password, bio, avatar) VALUES (?, ?, 'Ativo', '')", [req.body.username, h], (e) => e ? res.status(400).send() : res.json({ok:true}));
 });
 
 app.post('/login', (req, res) => {
@@ -60,9 +57,10 @@ app.get('/chats/:me', (req, res) => {
     (SELECT c FROM messages WHERE (s=contact AND r=?) OR (s=? AND r=contact) ORDER BY time DESC LIMIT 1) as last_msg, 
     (SELECT status FROM messages WHERE (s=contact AND r=?) OR (s=? AND r=contact) ORDER BY time DESC LIMIT 1) as last_status, 
     (SELECT strftime('%H:%M', time) FROM messages WHERE (s=contact AND r=?) OR (s=? AND r=contact) ORDER BY time DESC LIMIT 1) as last_time, 
-    (SELECT s FROM messages WHERE (s=contact AND r=?) OR (s=? AND r=contact) ORDER BY time DESC LIMIT 1) as last_sender 
+    (SELECT s FROM messages WHERE (s=contact AND r=?) OR (s=? AND r=contact) ORDER BY time DESC LIMIT 1) as last_sender,
+    (SELECT COUNT(*) FROM messages WHERE s=contact AND r=? AND status < 2) as unread
     FROM (SELECT r as contact FROM messages WHERE s=? UNION SELECT s as contact FROM messages WHERE r=?) JOIN users ON users.username = contact`;
-    db.all(q, Array(10).fill(req.params.me), (err, rows) => res.json(rows || []));
+    db.all(q, [req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me], (err, rows) => res.json(rows || []));
 });
 
 app.get('/messages/:u1/:u2', (req, res) => {
@@ -74,4 +72,4 @@ app.post('/update-profile', (req, res) => db.run("UPDATE users SET bio = ?, avat
 app.post('/post-status', (req, res) => db.run("INSERT INTO stories (username, content) VALUES (?, ?)", [req.body.username, req.body.content], () => res.json({ok:true})));
 app.get('/get-status', (req, res) => db.all("SELECT stories.*, users.avatar FROM stories JOIN users ON stories.username = users.username WHERE time > datetime('now', '-24 hours') ORDER BY time DESC", (e, r) => res.json(r || [])));
 
-server.listen(3001, () => console.log("Imperium V20 Online"));
+server.listen(3001);
