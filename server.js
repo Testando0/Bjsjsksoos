@@ -11,7 +11,7 @@ const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 })
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
 
-const db = new sqlite3.Database('./red_protocol_v21.db');
+const db = new sqlite3.Database('./red_protocol_v22.db');
 
 db.serialize(() => {
     db.run("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, avatar TEXT, bio TEXT)");
@@ -23,7 +23,6 @@ const online = {};
 
 io.on('connection', (socket) => {
     socket.on('join', (u) => { socket.username = u; online[u] = socket.id; });
-    
     socket.on('send_msg', (d) => {
         const target = online[d.r];
         db.run("INSERT INTO messages (s, r, c, type, status) VALUES (?, ?, ?, ?, ?)", [d.s, d.r, d.c, d.type, target ? 1 : 0], function() {
@@ -33,7 +32,6 @@ io.on('connection', (socket) => {
             });
         });
     });
-
     socket.on('mark_read', (d) => {
         db.run("UPDATE messages SET status = 2 WHERE s = ? AND r = ?", [d.s, d.r], () => {
             if(online[d.s]) io.to(online[d.s]).emit('msgs_read', { by: d.r });
@@ -43,7 +41,7 @@ io.on('connection', (socket) => {
 
 app.post('/register', async (req, res) => {
     const h = await bcrypt.hash(req.body.password, 10);
-    db.run("INSERT INTO users (username, password, bio, avatar) VALUES (?, ?, 'Ativo', '')", [req.body.username, h], (e) => e ? res.status(400).send() : res.json({ok:true}));
+    db.run("INSERT INTO users (username, password, bio, avatar) VALUES (?, ?, 'Red Protocol Active', '')", [req.body.username, h], (e) => e ? res.status(400).send() : res.json({ok:true}));
 });
 
 app.post('/login', (req, res) => {
@@ -60,7 +58,7 @@ app.get('/chats/:me', (req, res) => {
     (SELECT s FROM messages WHERE (s=contact AND r=?) OR (s=? AND r=contact) ORDER BY time DESC LIMIT 1) as last_sender,
     (SELECT COUNT(*) FROM messages WHERE s=contact AND r=? AND status < 2) as unread
     FROM (SELECT r as contact FROM messages WHERE s=? UNION SELECT s as contact FROM messages WHERE r=?) JOIN users ON users.username = contact`;
-    db.all(q, [req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me], (err, rows) => res.json(rows || []));
+    db.all(q, Array(11).fill(req.params.me), (err, rows) => res.json(rows || []));
 });
 
 app.get('/messages/:u1/:u2', (req, res) => {
