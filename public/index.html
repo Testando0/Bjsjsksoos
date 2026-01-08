@@ -3,104 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RED PROTOCOL PRO</title>
+    <title>RED PROTOCOL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap');
-        :root { --red: #ff0000; --dark-red: #450a0a; --bg: #050505; }
-        body { font-family: 'Inter', sans-serif; background: var(--bg); color: white; }
+        body { font-family: 'Inter', sans-serif; background: #000; color: #fff; margin: 0; }
         .gamer-font { font-family: 'Orbitron', sans-serif; }
-        .red-glass { background: rgba(15, 15, 15, 0.8); backdrop-filter: blur(10px); border: 1px solid rgba(255, 0, 0, 0.2); }
-        .msg-me { background: linear-gradient(to left, #7f1d1d, #450a0a); border-radius: 18px 18px 2px 18px; }
-        .msg-them { background: #1a1a1a; border-radius: 18px 18px 18px 2px; }
-        .status-circle { padding: 2px; border: 2px solid var(--red); border-radius: 50%; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: var(--red); border-radius: 10px; }
+        .red-ui { background: rgba(15, 15, 15, 0.95); border: 1px solid rgba(255, 0, 0, 0.2); }
+        .msg-me { background: #7f1d1d; border-radius: 15px 15px 2px 15px; align-self: flex-end; }
+        .msg-them { background: #1a1a1a; border-radius: 15px 15px 15px 2px; align-self: flex-start; border: 1px solid #333; }
+        .hidden { display: none; }
     </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="h-screen flex flex-col">
 
-    <div id="auth-screen" class="fixed inset-0 z-[200] bg-black flex items-center justify-center p-6 hidden">
-        <div class="red-glass p-8 w-full max-w-sm rounded-2xl shadow-[0_0_50px_rgba(255,0,0,0.2)]">
-            <h1 class="gamer-font text-red-600 text-3xl font-black italic mb-8 tracking-tighter uppercase">Red<span class="text-white">OS</span></h1>
-            <input id="u" placeholder="USERNAME" class="w-full bg-zinc-900/50 p-4 mb-3 rounded-xl border border-zinc-800 focus:border-red-600 outline-none transition-all">
-            <input id="p" type="password" placeholder="PASSWORD" class="w-full bg-zinc-900/50 p-4 mb-8 rounded-xl border border-zinc-800 focus:border-red-600 outline-none transition-all">
-            <button onclick="handleAuth('login')" class="w-full bg-red-600 py-4 rounded-xl font-bold uppercase gamer-font hover:bg-red-700 active:scale-95 transition-all">Entrar</button>
-            <button onclick="handleAuth('register')" class="w-full mt-4 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">Criar Novo Protocolo</button>
+    <div id="auth-screen" class="fixed inset-0 z-[200] bg-black flex items-center justify-center p-6">
+        <div class="red-ui p-8 w-full max-w-sm rounded-2xl shadow-[0_0_30px_rgba(255,0,0,0.1)]">
+            <h1 class="gamer-font text-red-600 text-3xl font-black mb-8 italic uppercase text-center">Red<span class="text-white">ID</span></h1>
+            <input id="u" placeholder="USUÁRIO" class="w-full bg-zinc-900 p-4 mb-3 rounded-xl border border-zinc-800 focus:border-red-600 outline-none">
+            <input id="p" type="password" placeholder="SENHA" class="w-full bg-zinc-900 p-4 mb-8 rounded-xl border border-zinc-800 focus:border-red-600 outline-none">
+            <button onclick="handleAuth('login')" class="w-full bg-red-600 py-4 rounded-xl font-bold uppercase hover:bg-red-700 transition">Entrar</button>
+            <button onclick="handleAuth('register')" class="w-full mt-4 text-zinc-500 text-[10px] font-bold uppercase text-center">Registrar Protocolo</button>
         </div>
     </div>
 
-    <div id="app" class="flex h-screen w-full">
-        <nav class="fixed bottom-0 w-full h-16 bg-zinc-900/90 border-t border-red-900/30 flex justify-around items-center z-50 md:relative md:w-20 md:h-full md:flex-col md:border-t-0 md:border-r">
-            <button onclick="tab('chats')" class="p-2 text-red-600">💬</button>
-            <button onclick="tab('status')" class="p-2 text-zinc-500">⭕</button>
-            <button onclick="tab('profile')" class="p-2 text-zinc-500">👤</button>
-        </nav>
-
-        <main class="flex-1 flex flex-col h-full pb-16 md:pb-0">
-            <header class="h-16 flex items-center justify-between px-6 border-b border-red-900/20 bg-black/50">
-                <h2 id="view-title" class="gamer-font font-bold text-red-600 uppercase tracking-widest">Conversas</h2>
-                <button onclick="searchUser()" class="w-10 h-10 bg-red-600/10 rounded-full flex items-center justify-center text-red-600">＋</button>
-            </header>
-
-            <div id="view-container" class="flex-1 overflow-y-auto">
-                <div id="chat-list" class="divide-y divide-zinc-900/50"></div>
-                
-                <div id="profile-tab" class="hidden p-8 flex flex-col items-center">
-                    <div class="relative group">
-                        <img id="my-p-img" class="w-32 h-32 rounded-full object-cover border-4 border-red-600 shadow-lg shadow-red-600/20">
-                        <input type="file" id="up-img" class="hidden" onchange="previewAvatar(event)">
-                        <button onclick="document.getElementById('up-img').click()" class="absolute bottom-0 right-0 bg-red-600 p-2 rounded-full text-xs">📷</button>
-                    </div>
-                    <h3 id="my-p-name" class="mt-4 gamer-font font-bold text-xl uppercase">Username</h3>
-                    <input id="my-p-bio" class="mt-6 w-full max-w-xs bg-zinc-900 border border-zinc-800 p-3 rounded-lg text-center outline-none focus:border-red-600" placeholder="Seu recado...">
-                    <button onclick="saveProfile()" class="mt-6 bg-red-600 px-12 py-3 rounded-full font-bold uppercase text-xs">Salvar Perfil</button>
-                    <button onclick="logout()" class="mt-12 text-zinc-600 text-[10px] font-bold underline">DESCONECTAR PROTOCOLO</button>
-                </div>
-
-                <div id="status-tab" class="hidden p-4">
-                    <div class="flex items-center gap-4 mb-8 bg-red-900/10 p-4 rounded-2xl border border-red-900/30">
-                        <div class="status-circle w-14 h-14 bg-zinc-800"></div>
-                        <div class="flex-1">
-                            <p class="font-bold text-sm">Meu Status</p>
-                            <p class="text-[10px] text-zinc-500 uppercase">Toque para atualizar</p>
-                        </div>
-                        <input type="file" id="st-file" class="hidden" onchange="postStatus(event)">
-                        <button onclick="document.getElementById('st-file').click()" class="bg-red-600 w-10 h-10 rounded-full font-bold">+</button>
-                    </div>
-                    <div id="stories-grid" class="grid grid-cols-2 gap-4"></div>
-                </div>
-            </div>
-        </main>
-    </div>
-
-    <div id="chat-win" class="fixed inset-0 bg-black z-[100] hidden flex flex-col">
-        <header class="h-16 bg-zinc-900/80 flex items-center px-4 gap-4 border-b border-red-600">
-            <button onclick="closeChat()" class="text-red-600 text-2xl font-bold">←</button>
-            <img id="t-img" class="w-10 h-10 rounded-full border border-red-900 object-cover">
-            <div class="flex-1">
-                <h4 id="t-name" class="text-sm font-bold">Target</h4>
-                <p id="t-status" class="text-[8px] text-zinc-500 uppercase tracking-tighter">Visto por último hoje...</p>
+    <div id="app" class="hidden flex flex-col h-full">
+        <header class="h-16 flex items-center justify-between px-6 border-b border-red-900/30 bg-zinc-900">
+            <h2 id="title" class="gamer-font font-bold text-red-600 text-sm uppercase">Mensagens</h2>
+            <div class="flex gap-4">
+                <button onclick="tab('status')">⭕</button>
+                <button onclick="tab('profile')">👤</button>
             </div>
         </header>
-        <div id="msgs" class="flex-1 overflow-y-auto p-4 space-y-4 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-        <div class="p-4 bg-zinc-900 flex gap-2 items-center">
-            <button onmousedown="startVoice()" onmouseup="stopVoice()" class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center text-xl shadow-inner active:bg-red-600 transition-colors">🎤</button>
-            <input id="m-input" class="flex-1 bg-black p-4 rounded-2xl border border-zinc-800 outline-none focus:border-red-600 transition-all text-sm" placeholder="Mensagem criptografada...">
-            <button onclick="send()" class="bg-red-600 w-12 h-12 rounded-full flex items-center justify-center font-bold shadow-lg shadow-red-600/30">➔</button>
+
+        <main id="main-view" class="flex-1 overflow-y-auto">
+            <div id="chats-view" class="p-4 space-y-2">
+                <p class="text-zinc-600 text-[10px] text-center mt-20">BUSQUE UM USUÁRIO PARA COMEÇAR</p>
+            </div>
+
+            <div id="status-view" class="hidden p-4 space-y-6">
+                <button onclick="document.getElementById('st-file').click()" class="w-full bg-zinc-900 border border-red-600/30 p-6 rounded-2xl font-bold uppercase text-xs">+ Postar Status (Foto/Vídeo)</button>
+                <input type="file" id="st-file" class="hidden" onchange="postStatus(event)">
+                <div id="st-list" class="grid grid-cols-2 gap-4"></div>
+            </div>
+
+            <div id="profile-view" class="hidden p-8 flex flex-col items-center">
+                <img id="my-img" class="w-32 h-32 rounded-full border-4 border-red-600 object-cover bg-zinc-800">
+                <input type="file" id="up-img" class="hidden" onchange="previewAvatar(event)">
+                <button onclick="document.getElementById('up-img').click()" class="mt-2 text-[10px] text-red-500 underline">TROCAR FOTO</button>
+                <input id="my-bio" class="mt-8 w-full bg-zinc-900 p-4 rounded-xl border border-zinc-800 text-center" placeholder="Bio...">
+                <button onclick="saveProfile()" class="mt-4 bg-red-600 px-10 py-3 rounded-full font-bold text-xs uppercase">Salvar</button>
+                <button onclick="logout()" class="mt-20 text-zinc-700 text-[10px]">SAIR DA CONTA</button>
+            </div>
+        </main>
+
+        <div id="chat-win" class="fixed inset-0 bg-black z-[150] hidden flex flex-col">
+            <header class="h-16 bg-zinc-900 flex items-center px-4 gap-4 border-b border-red-600">
+                <button onclick="closeChat()" class="text-red-600 text-xl font-bold">←</button>
+                <img id="t-img" class="w-10 h-10 rounded-full bg-zinc-800 object-cover">
+                <div>
+                    <h4 id="t-name" class="text-sm font-bold">User</h4>
+                    <span id="t-status" class="text-[8px] text-zinc-500 uppercase italic">Offline</span>
+                </div>
+            </header>
+            <div id="msgs-box" class="flex-1 overflow-y-auto p-4 flex flex-col gap-3"></div>
+            <div class="p-4 bg-zinc-900 flex gap-2 items-center">
+                <button onmousedown="startVoice()" onmouseup="stopVoice()" class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center text-xl">🎤</button>
+                <input id="m-input" class="flex-1 bg-black p-4 rounded-2xl border border-zinc-800 outline-none text-sm" placeholder="Escreva...">
+                <button onclick="sendMessage()" class="bg-red-600 w-12 h-12 rounded-full font-bold">➔</button>
+            </div>
         </div>
+
+        <button onclick="searchUser()" class="fixed bottom-8 right-8 w-16 h-16 bg-red-600 rounded-full shadow-lg shadow-red-600/40 text-3xl font-bold">+</button>
     </div>
 
     <script>
         const socket = io();
-        let me = null, target = null, recorder, audioChunks = [];
+        let me = null, target = null, recorder, chunks = [];
 
-        // PERSISTÊNCIA: Auto-login
         window.onload = () => {
-            const saved = localStorage.getItem('red_user');
-            if(saved) { me = JSON.parse(saved); initApp(); }
-            else { document.getElementById('auth-screen').classList.remove('hidden'); }
+            const saved = localStorage.getItem('red_u');
+            if(saved) { me = JSON.parse(saved); loginSuccess(); }
         };
 
         async function handleAuth(type) {
@@ -112,153 +96,118 @@
             const data = await res.json();
             if(res.ok) {
                 if(type === 'login') {
-                    me = data; localStorage.setItem('red_user', JSON.stringify(me));
-                    location.reload();
-                } else alert("PROTOCOLO CRIADO!");
-            } else alert("ERRO: " + data.error);
+                    me = data; localStorage.setItem('red_u', JSON.stringify(me));
+                    loginSuccess();
+                } else alert("REGISTRADO!");
+            } else alert("Erro!");
         }
 
-        function initApp() {
+        function loginSuccess() {
             document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app').classList.remove('hidden');
             socket.emit('join', me.username);
-            document.getElementById('my-p-name').innerText = me.username;
-            document.getElementById('my-p-img').src = me.avatar || 'https://ui-avatars.com/api/?name='+me.username;
-            document.getElementById('my-p-bio').value = me.bio;
-            tab('chats');
+            document.getElementById('my-img').src = me.avatar || 'https://ui-avatars.com/api/?name='+me.username;
+            document.getElementById('my-bio').value = me.bio;
         }
 
-        // --- NAVEGAÇÃO ---
-        function tab(name) {
-            document.getElementById('chat-list').classList.add('hidden');
-            document.getElementById('status-tab').classList.add('hidden');
-            document.getElementById('profile-tab').classList.add('hidden');
-            document.getElementById(`${name === 'chats' ? 'chat-list' : name + '-tab'}`).classList.remove('hidden');
-            document.getElementById('view-title').innerText = name.toUpperCase();
-            if(name === 'chats') loadChatList();
-            if(name === 'status') loadStatus();
-        }
-
-        async function loadChatList() {
-            // Lógica para listar contatos com quem já conversou (baseado no localStorage ou API)
-            const list = document.getElementById('chat-list');
-            list.innerHTML = `<p class="p-8 text-center text-zinc-700 text-xs uppercase">Sem atividades recentes. <br>Toque no + para iniciar.</p>`;
+        function tab(t) {
+            ['chats', 'status', 'profile'].forEach(id => document.getElementById(id+'-view').classList.add('hidden'));
+            document.getElementById(t+'-view').classList.remove('hidden');
+            if(t === 'status') loadStatus();
         }
 
         async function searchUser() {
-            const u = prompt("ID DO PROTOCOLO:");
+            const u = prompt("USERNAME:");
             if(!u) return;
             const res = await fetch(`/user/${u}`).then(r => r.json());
-            if(res.error) return alert("ALVO NÃO ENCONTRADO");
+            if(res.error) return alert("NÃO ENCONTRADO");
             openChat(res);
         }
 
-        // --- CHAT ---
         async function openChat(user) {
             target = user;
             document.getElementById('chat-win').classList.remove('hidden');
             document.getElementById('t-name').innerText = target.username;
             document.getElementById('t-img').src = target.avatar || 'https://ui-avatars.com/api/?name='+target.username;
-            updateLastSeen(target.last_seen);
             
             const msgs = await fetch(`/messages/${me.username}/${target.username}`).then(r => r.json());
-            document.getElementById('msgs').innerHTML = '';
+            document.getElementById('msgs-box').innerHTML = '';
             msgs.forEach(m => appendMsg(m));
         }
 
-        function updateLastSeen(time) {
-            const status = document.getElementById('t-status');
-            if(!time) return status.innerText = "OFFLINE";
-            const date = new Date(time);
-            status.innerText = `Visto por último: ${date.getHours()}:${date.getMinutes().toString().padStart(2,'0')}`;
+        function sendMessage(type = 'text', content = null) {
+            const c = content || document.getElementById('m-input').value;
+            if(!c || !target) return;
+            const msg = { s: me.username, r: target.username, c, type, time: new Date() };
+            socket.emit('chat_message', msg);
+            appendMsg(msg);
+            document.getElementById('m-input').value = '';
         }
+
+        socket.on('new_message', (d) => {
+            if(target && d.s === target.username) appendMsg(d);
+            else alert("Nova mensagem de: " + d.s);
+        });
 
         function appendMsg(d) {
             const isMe = d.s === me.username;
             const div = document.createElement('div');
-            div.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
-            let content = `<p class="text-sm">${d.c}</p>`;
-            if(d.type === 'voice') content = `<audio src="${d.c}" controls class="max-w-[200px]"></audio>`;
-            
-            div.innerHTML = `<div class="p-4 max-w-[85%] shadow-lg ${isMe ? 'msg-me text-white' : 'msg-them text-zinc-300'}">${content}<span class="block text-[8px] mt-1 opacity-50">${new Date(d.time || Date.now()).toLocaleTimeString()}</span></div>`;
-            const container = document.getElementById('msgs');
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+            div.className = isMe ? 'msg-me p-3 text-sm max-w-[80%]' : 'msg-them p-3 text-sm max-w-[80%]';
+            if(d.type === 'voice') div.innerHTML = `<audio src="${d.c}" controls class="w-48"></audio>`;
+            else div.innerText = d.c;
+            document.getElementById('msgs-box').appendChild(div);
+            document.getElementById('msgs-box').scrollTop = 99999;
         }
 
-        function send(type = 'text', content = null) {
-            const c = content || document.getElementById('m-input').value;
-            if(!c) return;
-            const data = { s: me.username, r: target.username, c, type, time: new Date() };
-            socket.emit('send_msg', data);
-            appendMsg(data);
-            document.getElementById('m-input').value = "";
-        }
-
-        socket.on('new_msg', (d) => { if(target && d.s === target.username) appendMsg(d); });
-
-        // --- ÁUDIO ---
+        // VOZ
         async function startVoice() {
-            audioChunks = [];
+            chunks = [];
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             recorder = new MediaRecorder(stream);
-            recorder.ondataavailable = e => audioChunks.push(e.data);
+            recorder.ondataavailable = e => chunks.push(e.data);
             recorder.onstop = () => {
                 const reader = new FileReader();
-                reader.readAsDataURL(new Blob(audioChunks));
-                reader.onloadend = () => send('voice', reader.result);
+                reader.readAsDataURL(new Blob(chunks));
+                reader.onloadend = () => sendMessage('voice', reader.result);
             };
             recorder.start();
         }
         function stopVoice() { recorder.stop(); }
 
-        // --- STATUS ---
-        async function postStatus(e) {
-            const file = e.target.files[0];
+        // PERFIL E STATUS (Simplificado)
+        function previewAvatar(e) {
             const reader = new FileReader();
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(e.target.files[0]);
+            reader.onload = () => document.getElementById('my-img').src = reader.result;
+        }
+
+        async function saveProfile() {
+            await fetch('/update-profile', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: me.username, avatar: document.getElementById('my-img').src, bio: document.getElementById('my-bio').value})
+            });
+            alert("SALVO!");
+        }
+
+        async function postStatus(e) {
+            const reader = new FileReader();
+            reader.readAsDataURL(e.target.files[0]);
             reader.onload = async () => {
-                const type = file.type.split('/')[0];
                 await fetch('/post-status', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({username: me.username, type, content: reader.result})
+                    body: JSON.stringify({username: me.username, type: 'image', content: reader.result})
                 });
-                alert("STATUS ENVIADO!");
                 loadStatus();
             };
         }
 
         async function loadStatus() {
             const res = await fetch('/get-status').then(r => r.json());
-            const grid = document.getElementById('stories-grid');
-            grid.innerHTML = res.map(s => `
-                <div class="red-glass p-2 rounded-xl overflow-hidden aspect-square flex flex-col items-center justify-center">
-                    ${s.type === 'image' ? `<img src="${s.content}" class="w-full h-full object-cover rounded-lg">` : `<p class="text-[10px] text-zinc-400">STATUS VÍDEO/TEXTO</p>`}
-                    <p class="text-[8px] mt-2 gamer-font text-red-600">${s.username}</p>
-                </div>
-            `).join('');
+            document.getElementById('st-list').innerHTML = res.map(s => `<img src="${s.content}" class="w-full aspect-square object-cover rounded-xl border border-red-900">`).join('');
         }
 
-        // --- PROFILE ---
-        function previewAvatar(e) {
-            const reader = new FileReader();
-            reader.readAsDataURL(e.target.files[0]);
-            reader.onload = () => document.getElementById('my-p-img').src = reader.result;
-        }
-
-        async function saveProfile() {
-            const avatar = document.getElementById('my-p-img').src;
-            const bio = document.getElementById('my-p-bio').value;
-            await fetch('/update-profile', {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username: me.username, avatar, bio})
-            });
-            me.avatar = avatar; me.bio = bio;
-            localStorage.setItem('red_user', JSON.stringify(me));
-            alert("SISTEMA ATUALIZADO!");
-        }
-
-        function logout() { localStorage.clear(); location.reload(); }
         function closeChat() { document.getElementById('chat-win').classList.add('hidden'); target = null; }
+        function logout() { localStorage.clear(); location.reload(); }
     </script>
 </body>
 </html>
