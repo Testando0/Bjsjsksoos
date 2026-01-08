@@ -7,106 +7,136 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
         body { font-family: 'Orbitron', sans-serif; background: #000; color: #fff; }
-        .red-ui { background: #0a0a0a; border: 1px solid #ff000044; }
-        .glow-red { box-shadow: 0 0 20px rgba(220, 38, 38, 0.4); }
+        .red-panel { background: #0d0d0d; border: 1px solid #ff000033; }
+        .active-tab { color: #ef4444; border-bottom: 3px solid #ef4444; }
+        .glow { box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <div id="auth-box" class="fixed inset-0 z-[100] bg-black flex items-center justify-center p-6">
-        <div class="red-ui p-8 w-full max-w-sm glow-red">
-            <h1 class="text-red-600 text-4xl font-black italic mb-6 tracking-tighter">RED<span class="text-white">OS</span></h1>
-            <input id="u" placeholder="USERNAME" class="w-full bg-black p-4 mb-3 border border-zinc-800 text-red-600 outline-none focus:border-red-600">
-            <input id="p" type="password" placeholder="PASSWORD" class="w-full bg-black p-4 mb-6 border border-zinc-800 text-red-600 outline-none focus:border-red-600">
-            <button onclick="handleAuth('login')" class="w-full bg-red-600 py-4 font-bold uppercase italic mb-2">Acessar</button>
-            <button onclick="handleAuth('register')" class="w-full border border-zinc-800 py-3 text-zinc-500 text-xs uppercase">Registrar Novo Protocolo</button>
+    <div id="login-screen" class="fixed inset-0 z-[100] bg-black flex items-center justify-center p-6">
+        <div class="red-panel p-8 w-full max-w-sm glow border-t-4 border-red-600">
+            <h1 class="text-red-600 text-4xl font-black italic mb-6">RED<span class="text-white">OS</span></h1>
+            <input id="u" placeholder="USUÁRIO" class="w-full bg-black border border-zinc-800 p-4 mb-2 outline-none focus:border-red-600">
+            <input id="p" type="password" placeholder="SENHA" class="w-full bg-black border border-zinc-800 p-4 mb-6 outline-none focus:border-red-600">
+            <button onclick="auth('login')" class="w-full bg-red-600 py-4 font-bold uppercase italic">Acessar</button>
+            <button onclick="auth('register')" class="w-full text-zinc-600 text-[10px] mt-4 uppercase">Registrar Novo Protocolo</button>
         </div>
     </div>
 
-    <div id="app" class="hidden flex flex-col h-full">
-        <header class="h-16 border-b-2 border-red-600 bg-zinc-900 flex items-center justify-between px-4">
-            <h2 id="header-title" class="font-black italic text-red-600 uppercase">Red Protocol</h2>
-            <button onclick="location.reload()" class="text-xs border border-red-900 px-2 py-1">LOGOUT</button>
+    <div id="main-screen" class="hidden flex flex-col h-full">
+        <header class="p-4 bg-zinc-900 flex justify-between items-center border-b border-red-900">
+            <h2 class="text-red-600 font-bold italic">RED PROTOCOL</h2>
+            <button onclick="openTab('profile')" class="text-xl">⚙️</button>
         </header>
-        <main class="flex-1 overflow-y-auto bg-black p-4 space-y-4 flex flex-col" id="msgs-container"></main>
-        <div id="input-bar" class="hidden p-4 bg-zinc-900 border-t border-red-900 flex gap-2">
-            <input id="m-input" class="flex-1 bg-black p-3 border border-zinc-800 text-red-500 outline-none" placeholder="MENSAGEM...">
-            <button onclick="sendMsg()" class="bg-red-600 px-6 font-bold italic">SEND</button>
+
+        <nav class="flex bg-zinc-900 text-[10px] font-bold tracking-widest text-zinc-500">
+            <button onclick="openTab('chats')" id="btn-chats" class="flex-1 py-4 active-tab">CONVERSAS</button>
+            <button onclick="openTab('status')" id="btn-status" class="flex-1 py-4">STATUS</button>
+            <button onclick="openTab('calls')" id="btn-calls" class="flex-1 py-4">CHAMADAS</button>
+        </nav>
+
+        <div id="content-area" class="flex-1 overflow-y-auto">
+            <div id="list-chats" class="divide-y divide-zinc-900"></div>
         </div>
-        <button id="fab" onclick="searchUser()" class="fixed bottom-6 right-6 w-16 h-16 bg-red-600 rounded-full glow-red flex items-center justify-center text-4xl font-black">+</button>
+
+        <button onclick="startNewChat()" class="fixed bottom-6 right-6 w-16 h-16 bg-red-600 rounded-full glow flex items-center justify-center text-3xl font-bold">+</button>
+    </div>
+
+    <div id="chat-screen" class="hidden fixed inset-0 bg-black z-50 flex flex-col">
+        <header class="p-4 bg-zinc-900 flex items-center gap-4 border-b border-red-600">
+            <button onclick="closeChat()" class="text-red-600 font-bold"> < </button>
+            <div id="chat-avatar" class="w-10 h-10 rounded-full bg-red-900 border border-red-500"></div>
+            <div>
+                <h3 id="chat-name" class="font-bold text-sm">Target</h3>
+                <span class="text-[8px] text-green-500">ONLINE</span>
+            </div>
+        </header>
+        <div id="chat-msgs" class="flex-1 overflow-y-auto p-4 space-y-4"></div>
+        <div class="p-4 bg-zinc-900 flex gap-2">
+            <input id="m-input" class="flex-1 bg-black p-3 border border-zinc-800 outline-none" placeholder="Data input...">
+            <button onclick="send()" class="bg-red-600 px-6 font-bold">SEND</button>
+        </div>
     </div>
 
     <script>
         const socket = io();
         let me = null, target = null;
 
-        async function handleAuth(type) {
-            const u = document.getElementById('u').value;
-            const p = document.getElementById('p').value;
-            if(!u || !p) return alert("Preencha tudo!");
-
-            const res = await fetch(`/${type}`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username: u, password: p })
-            });
-
-            const data = await res.json();
-
-            if (res.ok) {
-                if(type === 'register') {
-                    alert("Registrado com sucesso! Agora clique em Acessar.");
-                } else {
-                    me = data;
-                    document.getElementById('auth-box').classList.add('hidden');
-                    document.getElementById('app').classList.remove('hidden');
+        async function auth(type) {
+            const u = document.getElementById('u').value, p = document.getElementById('p').value;
+            const res = await fetch(`/${type}`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username: u, password: p}) });
+            if(res.ok) {
+                if(type === 'login') {
+                    me = await res.json();
+                    document.getElementById('login-screen').remove();
+                    document.getElementById('main-screen').classList.remove('hidden');
                     socket.emit('join', me.username);
-                }
-            } else {
-                alert(data.error || "Erro na operação");
+                    loadChatList();
+                } else alert("Registrado!");
             }
         }
 
-        async function searchUser() {
-            const u = prompt("USERNAME DO CONTATO:");
-            if(!u) return;
-            const res = await fetch(`/user/${u}`).then(r => r.json());
-            if(res.error) return alert("Usuário não encontrado!");
-            target = res;
-            document.getElementById('header-title').innerText = `@${target.username}`;
-            document.getElementById('input-bar').classList.remove('hidden');
-            loadChat();
+        async function loadChatList() {
+            const chats = await fetch(`/chats/${me.username}`).then(r => r.json());
+            const container = document.getElementById('list-chats');
+            container.innerHTML = chats.map(c => `
+                <div onclick="openChat('${c.contact}')" class="p-4 flex items-center gap-4 hover:bg-zinc-900 cursor-pointer">
+                    <div class="w-12 h-12 rounded-full bg-red-900 border border-red-600"></div>
+                    <div class="flex-1 border-b border-zinc-800 pb-2">
+                        <div class="flex justify-between"><span class="font-bold text-sm">${c.contact}</span><span class="text-[8px] text-zinc-500">12:00</span></div>
+                        <p class="text-[10px] text-zinc-400 truncate">Clique para descriptografar mensagens...</p>
+                    </div>
+                </div>
+            `).join('');
         }
 
-        async function loadChat() {
-            const msgs = await fetch(`/messages/${me.username}/${target.username}`).then(r => r.json());
-            const container = document.getElementById('msgs-container');
+        async function startNewChat() {
+            const u = prompt("USERNAME:");
+            if(u) openChat(u);
+        }
+
+        async function openChat(name) {
+            target = name;
+            document.getElementById('chat-name').innerText = name;
+            document.getElementById('chat-screen').classList.remove('hidden');
+            const msgs = await fetch(`/messages/${me.username}/${name}`).then(r => r.json());
+            const container = document.getElementById('chat-msgs');
             container.innerHTML = '';
             msgs.forEach(m => appendMsg(m, m.s === me.username));
         }
 
-        function sendMsg() {
+        function closeChat() { 
+            document.getElementById('chat-screen').classList.add('hidden'); 
+            loadChatList(); 
+        }
+
+        function send() {
             const c = document.getElementById('m-input').value;
-            if(!c || !target) return;
-            const data = { s: me.username, r: target.username, c, type: 'text' };
-            socket.emit('chat_msg', data);
+            if(!c) return;
+            const data = { s: me.username, r: target, c, type: 'text' };
+            socket.emit('msg', data);
             appendMsg(data, true);
             document.getElementById('m-input').value = "";
         }
 
-        socket.on('new_msg', (d) => {
-            if(target && d.s === target.username) appendMsg(d, false);
-        });
+        socket.on('msg', (d) => { if(target === d.s) appendMsg(d, false); else loadChatList(); });
 
         function appendMsg(d, isMe) {
             const div = document.createElement('div');
             div.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
-            div.innerHTML = `<div class="p-3 max-w-[80%] border-2 ${isMe ? 'bg-red-600 border-red-400' : 'bg-zinc-900 border-zinc-800'} rounded-xl text-sm">${d.c}</div>`;
-            const container = document.getElementById('msgs-container');
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
+            div.innerHTML = `<div class="p-3 max-w-[75%] rounded-lg ${isMe ? 'bg-red-600' : 'bg-zinc-900 border border-red-900'} text-xs">${d.c}</div>`;
+            document.getElementById('chat-msgs').appendChild(div);
+            document.getElementById('chat-msgs').scrollTop = 99999;
+        }
+
+        function openTab(tab) {
+            // Lógica simples de troca de abas
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active-tab'));
+            document.getElementById(`btn-${tab}`).classList.add('active-tab');
+            if(tab === 'chats') loadChatList();
         }
     </script>
 </body>
