@@ -11,7 +11,7 @@ const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 })
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public'));
 
-const db = new sqlite3.Database('./red_protocol_v15.db');
+const db = new sqlite3.Database('./red_protocol_v16.db');
 
 db.serialize(() => {
     db.run("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, avatar TEXT, bio TEXT)");
@@ -44,7 +44,7 @@ io.on('connection', (socket) => {
 
 app.post('/register', async (req, res) => {
     const h = await bcrypt.hash(req.body.password, 10);
-    db.run("INSERT INTO users (username, password, bio, avatar) VALUES (?, ?, 'Protocolo Ativo', '')", [req.body.username, h], (e) => e ? res.status(400).send() : res.json({ok:true}));
+    db.run("INSERT INTO users (username, password, bio, avatar) VALUES (?, ?, 'Red Protocol Active', '')", [req.body.username, h], (e) => e ? res.status(400).send() : res.json({ok:true}));
 });
 
 app.post('/login', (req, res) => {
@@ -73,4 +73,4 @@ app.post('/post-status', (req, res) => db.run("INSERT INTO stories (username, co
 app.get('/get-status', (req, res) => db.all("SELECT * FROM stories WHERE time > datetime('now', '-24 hours') ORDER BY time DESC", (e, r) => res.json(r)));
 app.get('/user/:u', (req, res) => db.get("SELECT * FROM users WHERE username = ?", [req.params.u], (e, r) => res.json(r)));
 
-server.listen(3001, () => console.log('Protocol V15 Operational'));
+server.listen(3001);
