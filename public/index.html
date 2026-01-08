@@ -3,98 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RED PROTOCOL V7</title>
+    <title>RED PROTOCOL | FINAL</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
-        body { background: #000; color: #eee; font-family: sans-serif; }
-        .red-glow { border: 1px solid rgba(255, 0, 0, 0.3); box-shadow: 0 0 15px rgba(255, 0, 0, 0.1); }
-        .tick { font-size: 10px; margin-left: 4px; }
-        .tick-read { color: #38bdf8; } /* Azul para lido */
-        .unread-badge { background: #ff0000; color: white; border-radius: 50%; padding: 2px 6px; font-size: 10px; font-weight: bold; }
-        .msg-me { background: #7f1d1d; border-radius: 12px 12px 2px 12px; align-self: flex-end; }
-        .msg-them { background: #18181b; border-radius: 12px 12px 12px 2px; align-self: flex-start; }
+        body { background: #000; color: #eee; font-family: 'Inter', sans-serif; }
+        .gamer-font { font-family: 'Orbitron', sans-serif; }
+        .red-glow { border: 1px solid rgba(255, 0, 0, 0.3); box-shadow: 0 0 20px rgba(255, 0, 0, 0.15); }
+        .msg-me { background: #7f1d1d; border-radius: 15px 15px 2px 15px; align-self: flex-end; }
+        .msg-them { background: #18181b; border-radius: 15px 15px 15px 2px; align-self: flex-start; }
+        .tick-read { color: #38bdf8; }
+        .unread-badge { background: #ff0000; color: white; border-radius: 50%; padding: 2px 7px; font-size: 10px; font-weight: bold; }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
 
-    <div id="auth-box" class="fixed inset-0 z-[200] bg-black flex items-center justify-center p-6">
+    <div id="auth-screen" class="fixed inset-0 z-[200] bg-black flex items-center justify-center p-6">
         <div class="bg-zinc-900 p-8 w-full max-w-sm rounded-2xl red-glow">
-            <h1 style="font-family:'Orbitron'" class="text-red-600 text-3xl font-black mb-8 text-center uppercase tracking-tighter">Red<span class="text-white">OS</span></h1>
-            <input id="u" placeholder="USUÁRIO" class="w-full bg-black p-4 mb-3 border border-zinc-800 outline-none rounded-xl focus:border-red-600">
-            <input id="p" type="password" placeholder="SENHA" class="w-full bg-black p-4 mb-8 border border-zinc-800 outline-none rounded-xl focus:border-red-600">
-            <button onclick="auth('login')" class="w-full bg-red-600 py-4 rounded-xl font-bold uppercase">Acessar</button>
+            <h1 class="gamer-font text-red-600 text-3xl font-black mb-8 text-center uppercase tracking-tighter">Red<span class="text-white">OS</span></h1>
+            
+            <div id="auth-form">
+                <input id="auth-u" placeholder="USUÁRIO" class="w-full bg-black p-4 mb-3 border border-zinc-800 outline-none rounded-xl focus:border-red-600">
+                <input id="auth-p" type="password" placeholder="SENHA" class="w-full bg-black p-4 mb-6 border border-zinc-800 outline-none rounded-xl focus:border-red-600">
+                
+                <div class="flex flex-col gap-3">
+                    <button onclick="handleAuth('login')" class="w-full bg-red-600 py-4 rounded-xl font-bold uppercase hover:bg-red-700">Entrar</button>
+                    <button onclick="handleAuth('register')" class="w-full bg-transparent border border-zinc-700 py-3 rounded-xl font-bold uppercase text-xs text-zinc-400">Criar Nova Conta</button>
+                </div>
+            </div>
         </div>
     </div>
 
     <div id="app" class="hidden h-full flex flex-col">
         <header class="h-16 flex items-center justify-between px-6 bg-zinc-900 border-b border-red-900/30">
-            <span style="font-family:'Orbitron'" class="text-red-600 font-bold text-xs">RED PROTOCOL</span>
-            <button onclick="logout()" class="text-[10px] text-zinc-500 uppercase">Sair</button>
+            <span class="gamer-font text-red-600 font-bold text-xs uppercase tracking-widest">Protocolo Ativo</span>
+            <button onclick="logout()" class="text-[10px] font-bold text-zinc-500 uppercase">Sair</button>
         </header>
 
-        <main id="chat-list" class="flex-1 overflow-y-auto divide-y divide-zinc-900"></main>
+        <main id="list-container" class="flex-1 overflow-y-auto divide-y divide-zinc-900/50 bg-black"></main>
 
-        <button onclick="newChat()" class="fixed bottom-8 right-8 w-14 h-14 bg-red-600 rounded-full shadow-lg text-2xl font-bold">+</button>
+        <button onclick="startNewChat()" class="fixed bottom-8 right-8 w-16 h-16 bg-red-600 rounded-full shadow-lg shadow-red-600/30 text-3xl font-bold active:scale-90 transition">＋</button>
     </div>
 
     <div id="chat-win" class="fixed inset-0 bg-black z-[150] hidden flex flex-col">
-        <header class="h-16 bg-zinc-900 flex items-center px-4 gap-4 border-b border-red-600">
-            <button onclick="closeChat()" class="text-red-600 text-2xl">←</button>
+        <header class="h-16 bg-zinc-900 flex items-center px-4 gap-4 border-b border-red-600 shadow-lg">
+            <button onclick="closeChat()" class="text-red-600 text-2xl font-bold">←</button>
             <div class="flex-1">
-                <h4 id="t-name" class="font-bold text-sm uppercase">User</h4>
-                <p id="t-status" class="text-[8px] text-zinc-500 uppercase">Offline</p>
+                <h4 id="chat-target-name" class="font-bold text-sm uppercase tracking-wider">User</h4>
+                <p id="chat-target-status" class="text-[8px] text-green-500 uppercase font-bold">Online</p>
             </div>
         </header>
-        <div id="msgs-box" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4"></div>
-        <div class="p-4 bg-zinc-900 flex gap-2">
-            <input id="m-input" class="flex-1 bg-black p-4 rounded-xl border border-zinc-800 outline-none" placeholder="Mensagem...">
-            <button onclick="sendMsg()" class="bg-red-600 px-6 rounded-xl font-bold">➔</button>
+        <div id="msgs-flow" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4"></div>
+        <div class="p-4 bg-zinc-900 flex gap-2 border-t border-zinc-800">
+            <input id="msg-input" class="flex-1 bg-black p-4 rounded-2xl border border-zinc-800 outline-none text-sm focus:border-red-600" placeholder="Escreva aqui...">
+            <button onclick="send()" class="bg-red-600 w-12 h-12 rounded-full font-bold shadow-lg shadow-red-600/20">➔</button>
         </div>
     </div>
 
     <script>
         const socket = io();
-        let me = null, target = null;
+        let me = null, activeTarget = null;
 
-        // --- AUTH ---
+        // --- INICIALIZAÇÃO ---
         window.onload = () => {
-            const s = localStorage.getItem('red_v7');
-            if(s) { me = JSON.parse(s); startApp(); }
+            const saved = localStorage.getItem('red_v8_session');
+            if(saved) { me = JSON.parse(saved); openApp(); }
         };
 
-        async function auth(type) {
-            const u = document.getElementById('u').value, p = document.getElementById('p').value;
-            const res = await fetch(`/${type}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u, password:p}) });
+        async function handleAuth(type) {
+            const u = document.getElementById('auth-u').value;
+            const p = document.getElementById('auth-p').value;
+            if(!u || !p) return alert("Preencha todos os campos");
+
+            const res = await fetch(`/${type}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username: u, password: p })
+            });
+            
+            const data = await res.json();
             if(res.ok) {
-                me = await res.json();
-                localStorage.setItem('red_v7', JSON.stringify(me));
-                location.reload();
+                if(type === 'login') {
+                    me = data;
+                    localStorage.setItem('red_v8_session', JSON.stringify(me));
+                    openApp();
+                } else {
+                    alert("Conta criada com sucesso! Agora clique em Entrar.");
+                }
+            } else {
+                alert("Erro: " + data.error);
             }
         }
 
-        function startApp() {
-            document.getElementById('auth-box').remove();
+        function openApp() {
+            document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('app').classList.remove('hidden');
             socket.emit('join', me.username);
-            loadChats();
+            loadChatList();
         }
 
-        // --- CHATS LIST ---
-        async function loadChats() {
+        // --- LÓGICA DE CHATS ---
+        async function loadChatList() {
             const res = await fetch(`/chats/${me.username}`).then(r => r.json());
-            const container = document.getElementById('chat-list');
+            const container = document.getElementById('list-container');
+            if(res.length === 0) {
+                container.innerHTML = `<div class="p-20 text-center text-zinc-700 text-xs uppercase tracking-widest">Nenhuma conversa ativa</div>`;
+                return;
+            }
             container.innerHTML = res.map(c => {
                 const isMe = c.last_sender === me.username;
-                const tickHtml = isMe ? getTickHtml(c.last_status) : '';
                 return `
-                <div onclick="openChat('${c.contact}')" class="p-4 flex items-center gap-4 active:bg-zinc-900">
-                    <div class="w-12 h-12 rounded-full bg-red-900 border border-red-600 flex items-center justify-center font-bold">${c.contact[0]}</div>
+                <div onclick="openChat('${c.contact}')" class="p-5 flex items-center gap-4 active:bg-zinc-900 transition-colors">
+                    <div class="w-12 h-12 rounded-full bg-red-900 border border-red-600 flex items-center justify-center font-bold text-white">${c.contact[0].toUpperCase()}</div>
                     <div class="flex-1 overflow-hidden">
-                        <div class="flex justify-between"><h4 class="text-sm font-bold uppercase">${c.contact}</h4><span class="text-[10px] text-zinc-600">12:00</span></div>
+                        <div class="flex justify-between items-center mb-1">
+                            <h4 class="font-bold text-sm uppercase tracking-wide">${c.contact}</h4>
+                            <span class="text-[9px] text-zinc-600">ATIVO</span>
+                        </div>
                         <div class="flex justify-between items-center">
-                            <p class="text-xs text-zinc-500 truncate">${tickHtml} ${c.last_msg || ''}</p>
+                            <p class="text-xs text-zinc-500 truncate flex items-center gap-1">
+                                ${isMe ? getTickHtml(c.last_status) : ''} ${c.last_msg || 'Mídia enviada'}
+                            </p>
                             ${c.unread > 0 ? `<span class="unread-badge">${c.unread}</span>` : ''}
                         </div>
                     </div>
@@ -103,64 +133,76 @@
         }
 
         function getTickHtml(status) {
-            if (status === 0) return `<span class="tick text-zinc-600">✓</span>`;
-            if (status === 1) return `<span class="tick text-zinc-400">✓✓</span>`;
-            if (status === 2) return `<span class="tick tick-read">✓✓</span>`;
+            if (status === 0) return `<span class="text-zinc-600">✓</span>`;
+            if (status === 1) return `<span class="text-zinc-400">✓✓</span>`;
+            if (status === 2) return `<span class="tick-read">✓✓</span>`;
             return '';
         }
 
-        // --- CHAT WINDOW ---
         async function openChat(name) {
-            target = name;
+            activeTarget = name;
             document.getElementById('chat-win').classList.remove('hidden');
-            document.getElementById('t-name').innerText = name;
-            socket.emit('mark_read', { s: target, r: me.username });
-            const msgs = await fetch(`/messages/${me.username}/${target}`).then(r => r.json());
-            document.getElementById('msgs-box').innerHTML = '';
-            msgs.forEach(m => appendMsg(m));
-            loadChats(); // Limpa bolinha de não lidas
+            document.getElementById('chat-target-name').innerText = name;
+            
+            // Notifica o servidor que li as mensagens
+            socket.emit('mark_read', { s: activeTarget, r: me.username });
+            
+            const msgs = await fetch(`/messages/${me.username}/${activeTarget}`).then(r => r.json());
+            const flow = document.getElementById('msgs-flow');
+            flow.innerHTML = '';
+            msgs.forEach(m => renderMsg(m));
+            loadChatList(); // Atualiza a lista inicial (remove badge)
         }
 
-        function sendMsg() {
-            const val = document.getElementById('m-input').value;
+        function send() {
+            const input = document.getElementById('msg-input');
+            const val = input.value;
             if(!val) return;
-            const tempId = Date.now();
-            const msg = { s: me.username, r: target, c: val, type: 'text', status: 0, tempId };
+
+            const msg = { s: me.username, r: activeTarget, c: val, type: 'text', status: 0 };
             socket.emit('send_msg', msg);
-            appendMsg(msg);
-            document.getElementById('m-input').value = '';
+            renderMsg(msg);
+            input.value = '';
         }
 
         socket.on('new_msg', (d) => {
-            if(target === d.s) {
-                appendMsg(d);
-                socket.emit('mark_read', { s: target, r: me.username });
+            if(activeTarget === d.s) {
+                renderMsg(d);
+                socket.emit('mark_read', { s: activeTarget, r: me.username });
             }
-            loadChats();
+            loadChatList();
         });
 
         socket.on('msgs_read_by_target', (d) => {
-            if(target === d.by) {
-                document.querySelectorAll('.tick').forEach(t => {
-                    t.innerText = '✓✓';
-                    t.classList.add('tick-read');
+            if(activeTarget === d.by) {
+                document.querySelectorAll('.status-area').forEach(el => {
+                    el.innerHTML = `<span class="tick-read">✓✓</span>`;
                 });
             }
-            loadChats();
+            loadChatList();
         });
 
-        function appendMsg(d) {
+        function renderMsg(d) {
             const isMe = d.s === me.username;
             const div = document.createElement('div');
-            div.className = isMe ? 'msg-me p-3 text-sm max-w-[80%] flex flex-col' : 'msg-them p-3 text-sm max-w-[80%]';
-            div.innerHTML = `<span>${d.c}</span><div class="text-[8px] self-end opacity-50">${isMe ? getTickHtml(d.status) : ''}</div>`;
-            const box = document.getElementById('msgs-box');
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
+            div.className = isMe ? 'msg-me p-3 px-4 text-sm max-w-[85%] shadow-md' : 'msg-them p-3 px-4 text-sm max-w-[85%]';
+            div.innerHTML = `
+                <div>${d.c}</div>
+                <div class="text-[9px] mt-1 text-right opacity-50 status-area">
+                    ${isMe ? getTickHtml(d.status) : ''}
+                </div>
+            `;
+            const flow = document.getElementById('msgs-flow');
+            flow.appendChild(div);
+            flow.scrollTop = flow.scrollHeight;
         }
 
-        function closeChat() { document.getElementById('chat-win').classList.add('hidden'); target = null; loadChats(); }
-        function newChat() { const n = prompt("USER:"); if(n) openChat(n); }
+        function startNewChat() {
+            const n = prompt("NOME DO USUÁRIO:");
+            if(n) openChat(n);
+        }
+
+        function closeChat() { document.getElementById('chat-win').classList.add('hidden'); activeTarget = null; loadChatList(); }
         function logout() { localStorage.clear(); location.reload(); }
     </script>
 </body>
