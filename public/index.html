@@ -3,440 +3,368 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Chat Profissional V22 Final</title>
+    <title>Chat Profissional V3 Final</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-main: #09090b; --bg-card: #18181b; --bg-hover: #27272a;
-            --accent: #3b82f6; --accent-dark: #2563eb;
-            --text-main: #f4f4f5; --text-muted: #a1a1aa; --border: #27272a;
-        }
-        body { background: var(--bg-main); color: var(--text-main); font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; }
+        :root { --bg-main: #09090b; --bg-card: #18181b; --accent: #3b82f6; }
+        body { background: var(--bg-main); color: #f4f4f5; font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; }
         .hidden { display: none !important; }
+        
+        /* Navegação */
         .tab-active { color: var(--accent); border-bottom: 2px solid var(--accent); }
-        .tab-inactive { color: var(--text-muted); border-bottom: 2px solid transparent; }
+        .tab-inactive { color: #71717a; border-bottom: 2px solid transparent; }
         
-        /* Balões de Mensagem */
-        .msg-me { background: var(--accent-dark); color: white; border-radius: 16px 16px 2px 16px; align-self: flex-end; max-width: 85%; padding: 10px 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); position: relative; }
-        .msg-them { background: var(--bg-hover); color: white; border-radius: 16px 16px 16px 2px; align-self: flex-start; max-width: 85%; padding: 10px 14px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); position: relative; }
+        /* Balões */
+        .msg-me { background: #2563eb; color: white; border-radius: 16px 16px 2px 16px; align-self: flex-end; max-width: 85%; padding: 10px 14px; margin-bottom: 8px; }
+        .msg-them { background: #27272a; color: white; border-radius: 16px 16px 16px 2px; align-self: flex-start; max-width: 85%; padding: 10px 14px; margin-bottom: 8px; }
         
-        /* Animações */
-        .modal-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        .pulse-rec { animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 4px; }
-        
-        /* Áudio Player Customizado Simples */
-        audio { height: 30px; max-width: 200px; filter: invert(1); }
-        .msg-them audio { filter: invert(0); } /* Ajuste visual para fundo escuro */
-
+        /* Animações e Utilitários */
+        .modal-up { animation: slideUp 0.3s forwards; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         * { -webkit-tap-highlight-color: transparent; outline: none !important; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
-    <div id="auth-screen" class="fixed inset-0 z-[1000] bg-black flex items-center justify-center p-6">
-        <div class="w-full max-w-sm bg-[#18181b] p-8 rounded-3xl border border-zinc-800 shadow-2xl">
-            <h1 class="text-2xl font-bold text-center mb-8 text-blue-500">Login App</h1>
-            <input id="u_auth" placeholder="Usuário" class="w-full bg-[#09090b] px-4 py-3.5 mb-3 rounded-xl border border-zinc-800 text-white focus:border-blue-600 transition">
-            <input id="p_auth" type="password" placeholder="Senha" class="w-full bg-[#09090b] px-4 py-3.5 mb-8 rounded-xl border border-zinc-800 text-white focus:border-blue-600 transition">
-            <button onclick="access('login')" class="w-full bg-blue-600 hover:bg-blue-700 py-3.5 rounded-xl font-bold mb-4 transition">ENTRAR</button>
-            <button onclick="access('register')" class="w-full text-xs text-zinc-500 hover:text-white font-bold uppercase transition">Criar Conta</button>
+    <div id="auth-screen" class="fixed inset-0 z-[3000] bg-black flex items-center justify-center p-6">
+        <div class="w-full max-w-sm bg-[#18181b] p-8 rounded-3xl border border-zinc-800">
+            <h1 class="text-2xl font-bold text-center mb-8 text-blue-500">Login</h1>
+            <input id="u_auth" placeholder="Usuário" class="w-full bg-[#09090b] px-4 py-3 mb-3 rounded-xl border border-zinc-800 text-white">
+            <input id="p_auth" type="password" placeholder="Senha" class="w-full bg-[#09090b] px-4 py-3 mb-8 rounded-xl border border-zinc-800 text-white">
+            <button onclick="access('login')" class="w-full bg-blue-600 py-3 rounded-xl font-bold mb-4">ENTRAR</button>
+            <button onclick="access('register')" class="w-full text-xs text-zinc-500 font-bold uppercase">Criar Conta</button>
         </div>
     </div>
 
-    <div id="app" class="hidden flex-1 flex flex-col max-w-md mx-auto w-full h-full bg-[#09090b] relative border-x border-zinc-800">
+    <div id="app" class="hidden flex-1 flex flex-col w-full h-full max-w-md mx-auto relative bg-[#09090b] border-x border-zinc-800">
         
-        <header class="px-5 py-4 flex justify-between items-center bg-[#18181b] border-b border-zinc-800 z-10">
-            <h1 class="text-lg font-bold">Conversas</h1>
-            <button onclick="toggleSettings()" class="text-zinc-400 p-1 relative">
-                <img id="header_my_pic" class="w-8 h-8 rounded-full object-cover border border-zinc-700">
+        <header class="h-16 px-5 flex justify-between items-center bg-[#18181b] border-b border-zinc-800 relative z-[100]">
+            <h1 class="text-lg font-bold">Chat V3</h1>
+            
+            <button onclick="toggleSettings()" class="relative">
+                <img id="header_pic" class="w-9 h-9 rounded-full object-cover border border-zinc-600 bg-zinc-800">
             </button>
-            <div id="settings-menu" class="hidden absolute right-5 top-16 w-48 bg-[#18181b] border border-zinc-800 rounded-xl py-2 z-50 shadow-xl">
-                <button onclick="tab('profile'); toggleSettings()" class="w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm flex items-center gap-2">👤 Perfil</button>
-                <div class="h-px bg-zinc-800 my-1"></div>
-                <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm text-red-500 flex items-center gap-2">🚪 Sair</button>
+
+            <div id="settings-menu" class="hidden absolute right-4 top-14 w-48 bg-[#18181b] border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-[200]">
+                <button onclick="goToProfile()" class="w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm border-b border-zinc-800">👤 Meu Perfil</button>
+                <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm text-red-500">🚪 Sair</button>
             </div>
         </header>
 
-        <nav class="flex bg-[#18181b] border-b border-zinc-800">
-            <button onclick="tab('chats')" id="t-chats" class="flex-1 py-4 text-xs font-bold tab-active transition-all">CHATS</button>
-            <button onclick="tab('status')" id="t-status" class="flex-1 py-4 text-xs font-bold tab-inactive transition-all">STATUS</button>
+        <nav class="flex bg-[#18181b] border-b border-zinc-800 shrink-0 z-50">
+            <button onclick="tab('chats')" id="t-chats" class="flex-1 py-4 text-xs font-bold tab-active">CONVERSAS</button>
+            <button onclick="tab('status')" id="t-status" class="flex-1 py-4 text-xs font-bold tab-inactive">STATUS</button>
         </nav>
 
-        <main class="flex-1 overflow-y-auto relative bg-[#09090b]">
+        <main class="flex-1 overflow-y-auto relative">
             
-            <div id="view-chats" class="divide-y divide-zinc-800 pb-24"></div>
+            <div id="view-chats" class="pb-24"></div>
 
-            <div id="view-status" class="hidden p-4 space-y-4 pb-24">
-                <div onclick="document.getElementById('st_file').click()" class="p-4 rounded-xl bg-[#18181b] border border-dashed border-zinc-700 flex items-center gap-3 active:scale-95 transition cursor-pointer">
-                    <div class="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500 font-bold text-xl">+</div>
-                    <div><h4 class="text-sm font-bold">Meu Status</h4><p class="text-xs text-zinc-500">Toque para adicionar foto</p></div>
+            <div id="view-status" class="hidden p-4 pb-24">
+                <div onclick="document.getElementById('st_file').click()" class="mb-6 p-4 rounded-xl bg-[#18181b] border border-dashed border-zinc-700 flex items-center gap-3 cursor-pointer">
+                    <div class="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500 font-bold">+</div>
+                    <div><h4 class="text-sm font-bold">Postar Status</h4></div>
                     <input type="file" id="st_file" class="hidden" accept="image/*" onchange="postStatus(event)">
                 </div>
-                <h3 class="text-xs font-bold text-zinc-500 mt-6 mb-2 uppercase tracking-wide">Recentes</h3>
                 <div id="st_grid" class="grid grid-cols-2 gap-3"></div>
             </div>
 
-            <div id="view-profile" class="hidden p-8 flex flex-col items-center animate-fade">
-                <div class="relative group">
-                    <img id="my_pic" class="w-32 h-32 rounded-full border-4 border-[#18181b] mb-4 object-cover shadow-lg">
-                    <div onclick="document.getElementById('p_file').click()" class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer">
-                        <span class="text-xs font-bold">ALTERAR</span>
+            <div id="view-profile" class="hidden p-6 flex flex-col items-center animate-fade">
+                <div class="relative mb-6 group cursor-pointer" onclick="document.getElementById('p_file').click()">
+                    <img id="profile_pic_large" class="w-32 h-32 rounded-full border-4 border-[#18181b] object-cover">
+                    <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                        <span class="text-xs font-bold text-white">TROCAR</span>
                     </div>
                 </div>
                 <input type="file" id="p_file" class="hidden" accept="image/*" onchange="previewAvatar(event)">
                 
-                <div class="w-full space-y-4 mt-4">
-                    <div>
-                        <label class="text-xs text-zinc-500 font-bold ml-1">BIO / STATUS</label>
-                        <input id="my_bio" placeholder="Sua bio" class="w-full bg-[#18181b] p-4 rounded-xl border border-zinc-800 text-white focus:border-blue-600 transition">
-                    </div>
-                    <button onclick="saveProfile()" class="w-full bg-blue-600 hover:bg-blue-700 py-4 rounded-xl font-bold shadow-lg shadow-blue-900/20 transition">SALVAR ALTERAÇÕES</button>
-                </div>
+                <input id="my_bio" placeholder="Sua bio" class="w-full bg-[#18181b] p-4 rounded-xl border border-zinc-800 text-white mb-4">
+                <button onclick="saveProfile()" class="w-full bg-blue-600 py-4 rounded-xl font-bold">SALVAR PERFIL</button>
+                <button onclick="tab('chats')" class="w-full mt-2 py-4 text-zinc-500 text-sm">Voltar</button>
             </div>
         </main>
 
-        <button onclick="openNewChatModal()" id="fab-btn" class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center shadow-xl z-30 hover:scale-110 transition active:scale-90">
+        <button onclick="openNewChatModal()" id="fab-btn" class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center shadow-xl z-50">
             <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         </button>
     </div>
 
     <div id="new-chat-modal" class="fixed inset-0 z-[2000] hidden flex flex-col bg-[#09090b] modal-up">
         <header class="h-16 flex items-center gap-4 px-4 border-b border-zinc-800 bg-[#18181b]">
-            <button onclick="closeNewChatModal()" class="text-zinc-400 p-2"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg></button>
+            <button onclick="closeNewChatModal()" class="text-zinc-400 p-2">✕</button>
             <h2 class="text-lg font-bold">Nova Conversa</h2>
         </header>
         <div class="p-6">
-            <label class="text-xs text-zinc-500 mb-2 block">DIGITE O NOME DE USUÁRIO</label>
-            <input id="nc_input" class="w-full bg-[#18181b] p-4 rounded-xl border border-zinc-800 text-white focus:border-blue-600 outline-none" placeholder="Ex: joao123">
-            <button onclick="startNewChat()" class="w-full mt-4 bg-blue-600 py-4 rounded-xl font-bold shadow-lg">BUSCAR E INICIAR</button>
+            <input id="nc_input" class="w-full bg-[#18181b] p-4 rounded-xl border border-zinc-800 text-white" placeholder="Nome do usuário...">
+            <button onclick="startNewChat()" class="w-full mt-4 bg-blue-600 py-4 rounded-xl font-bold">INICIAR</button>
         </div>
     </div>
 
-    <div id="chat-win" class="fixed inset-0 bg-[#09090b] z-[500] hidden flex flex-col">
-        <header class="h-16 bg-[#18181b] flex items-center px-2 border-b border-zinc-800 shrink-0 shadow-sm z-20">
-            <button onclick="closeChat()" class="p-2 text-zinc-400 mr-1"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
-            <div class="flex items-center gap-3 cursor-pointer" onclick="viewContactProfile()">
-                <img id="h_img" class="w-10 h-10 rounded-full object-cover border border-zinc-700">
-                <div>
-                    <h4 id="h_name" class="font-bold text-sm leading-tight">--</h4>
-                    <span class="text-[10px] text-green-500 font-medium">Online</span>
-                </div>
+    <div id="chat-win" class="fixed inset-0 bg-[#09090b] z-[1000] hidden flex flex-col">
+        <header class="h-16 bg-[#18181b] flex items-center px-2 border-b border-zinc-800 shrink-0">
+            <button onclick="closeChat()" class="p-3 text-zinc-400 mr-2"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+            <div class="flex items-center gap-3">
+                <img id="chat_h_img" class="w-10 h-10 rounded-full object-cover bg-zinc-800">
+                <h4 id="chat_h_name" class="font-bold text-sm">--</h4>
             </div>
         </header>
         
-        <div id="msg_flow" class="flex-1 overflow-y-auto p-4 flex flex-col gap-2 bg-[#09090b]"></div>
+        <div id="msg_flow" class="flex-1 overflow-y-auto p-4 flex flex-col"></div>
         
-        <div class="p-3 bg-[#18181b] flex items-end gap-2 border-t border-zinc-800">
-            <button id="mic_btn" onclick="toggleRecording()" class="w-12 h-12 rounded-xl flex items-center justify-center bg-zinc-800 text-zinc-400 active:text-red-500 transition">
-                <svg id="mic_icon" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-            </button>
-            <div class="flex-1 bg-[#09090b] rounded-xl border border-zinc-800 flex items-center pr-2">
-                <input id="m_in" class="flex-1 bg-transparent p-3 text-white border-none focus:ring-0 h-12" placeholder="Mensagem..." autocomplete="off" onkeydown="if(event.key==='Enter') sendMsg()">
-            </div>
-            <button onclick="sendMsg()" id="act_btn" class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-lg active:scale-95 transition">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
-            </button>
-        </div>
-        <div id="rec_indicator" class="hidden absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg pulse-rec flex items-center gap-2 z-50">
-            <div class="w-2 h-2 bg-white rounded-full"></div> GRAVANDO... (Toque no mic p/ enviar)
+        <div class="p-3 bg-[#18181b] flex items-center gap-2 border-t border-zinc-800">
+            <button id="mic_btn" onclick="toggleRecording()" class="w-12 h-12 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center">🎤</button>
+            <input id="m_in" class="flex-1 bg-[#09090b] p-3 rounded-xl border border-zinc-800 text-white h-12" placeholder="Mensagem..." onkeydown="if(event.key==='Enter') sendMsg()">
+            <button onclick="sendMsg()" class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white">➤</button>
         </div>
     </div>
 
     <script>
         const socket = io();
         let me = null, active = null;
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let isRecording = false;
+        let mediaRecorder = null, audioChunks = [], isRecording = false;
 
-        // --- AUTH SYSTEM ---
+        // --- SISTEMA DE NAVEGAÇÃO (TAB) REESCRITO ---
+        function tab(t) {
+            // Esconde todas as views
+            ['view-chats', 'view-status', 'view-profile'].forEach(id => document.getElementById(id).classList.add('hidden'));
+            
+            // Reseta estilo das abas
+            document.getElementById('t-chats').className = 'flex-1 py-4 text-xs font-bold tab-inactive';
+            document.getElementById('t-status').className = 'flex-1 py-4 text-xs font-bold tab-inactive';
+            
+            // Mostra a view desejada
+            document.getElementById('view-'+t).classList.remove('hidden');
+            
+            // Ativa estilo da aba (se houver)
+            if(t !== 'profile') {
+                document.getElementById('t-'+t).className = 'flex-1 py-4 text-xs font-bold tab-active';
+                document.getElementById('fab-btn').classList.remove('hidden');
+            } else {
+                document.getElementById('fab-btn').classList.add('hidden');
+            }
+
+            // Ações específicas
+            if(t === 'chats') loadChats();
+            if(t === 'status') loadStatus();
+            
+            // Fecha menu se estiver aberto
+            document.getElementById('settings-menu').classList.add('hidden');
+        }
+
+        function toggleSettings() {
+            document.getElementById('settings-menu').classList.toggle('hidden');
+        }
+
+        function goToProfile() {
+            tab('profile');
+        }
+
+        // --- AUTH ---
         async function access(type) {
             const u = document.getElementById('u_auth').value.trim();
             const p = document.getElementById('p_auth').value.trim();
-            if(!u || !p) return alert("Preencha todos os campos");
+            if(!u || !p) return alert("Preencha tudo");
             
             try {
-                const res = await fetch('/'+type, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u, password:p})});
+                const res = await fetch('/'+type, { 
+                    method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u, password:p})
+                });
                 if(res.ok) {
-                    if(type==='login') { 
-                        me = await res.json(); 
-                        localStorage.setItem('red_v22', JSON.stringify(me)); 
-                        location.reload(); 
+                    if(type === 'login') {
+                        me = await res.json();
+                        localStorage.setItem('red_v3', JSON.stringify(me));
+                        location.reload();
                     } else {
-                        alert("Conta criada com sucesso! Faça login.");
-                        document.getElementById('u_auth').value = u;
-                        document.getElementById('p_auth').value = '';
+                        alert("Cadastrado! Faça login.");
                     }
-                } else alert("Erro: Usuário inválido ou já existente.");
+                } else alert("Erro. Tente outro usuário.");
             } catch(e) { alert("Erro de conexão"); }
         }
 
         window.onload = () => {
-            const saved = localStorage.getItem('red_v22');
+            const saved = localStorage.getItem('red_v3');
             if(saved) {
-                me = JSON.parse(saved);
-                document.getElementById('auth-screen').remove();
-                document.getElementById('app').classList.remove('hidden');
-                socket.emit('join', me.username);
-                loadChats();
-                updateMyProfileUI();
+                try {
+                    me = JSON.parse(saved);
+                    document.getElementById('auth-screen').remove();
+                    document.getElementById('app').classList.remove('hidden');
+                    socket.emit('join', me.username);
+                    updateUI();
+                    tab('chats'); // Inicia na tela de chats
+                } catch(e) { localStorage.clear(); }
             }
         };
 
-        // --- PROFILE LOGIC ---
-        function updateMyProfileUI() {
-            const pic = me.avatar && me.avatar.length > 10 ? me.avatar : `https://ui-avatars.com/api/?name=${me.username}&background=random`;
-            document.getElementById('my_pic').src = pic;
-            document.getElementById('header_my_pic').src = pic;
+        function updateUI() {
+            const pic = me.avatar || `https://ui-avatars.com/api/?name=${me.username}`;
+            document.getElementById('header_pic').src = pic;
+            document.getElementById('profile_pic_large').src = pic;
             document.getElementById('my_bio').value = me.bio || '';
         }
 
+        // --- PERFIL ---
         function previewAvatar(e) {
-            const r = new FileReader(); 
-            r.onload = () => document.getElementById('my_pic').src = r.result;
-            if(e.target.files[0]) r.readAsDataURL(e.target.files[0]);
+            const f = e.target.files[0];
+            if(f) {
+                const r = new FileReader();
+                r.onload = () => document.getElementById('profile_pic_large').src = r.result;
+                r.readAsDataURL(f);
+            }
         }
 
         async function saveProfile() {
-            const avatar = document.getElementById('my_pic').src;
+            const avatar = document.getElementById('profile_pic_large').src;
             const bio = document.getElementById('my_bio').value;
-            // Otimização: Se a imagem for a URL do ui-avatars, salva string vazia para economizar banco, senão salva base64
-            const avatarToSend = avatar.includes('ui-avatars.com') ? '' : avatar;
+            // Só envia se for base64 (imagem nova), senão envia vazio pra manter atual
+            const sendAvatar = avatar.startsWith('data:') ? avatar : ''; 
             
-            await fetch('/update-profile', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:me.username, bio, avatar: avatarToSend})});
+            await fetch('/update-profile', {
+                method:'POST', headers:{'Content-Type':'application/json'}, 
+                body:JSON.stringify({username: me.username, bio, avatar: sendAvatar})
+            });
             
-            me.avatar = avatarToSend; 
-            me.bio = bio; 
-            localStorage.setItem('red_v22', JSON.stringify(me));
-            updateMyProfileUI();
-            alert("Perfil atualizado com sucesso!");
-            tab('chats'); // Volta para home
+            if(sendAvatar) me.avatar = sendAvatar;
+            me.bio = bio;
+            localStorage.setItem('red_v3', JSON.stringify(me));
+            updateUI();
+            alert("Perfil salvo!");
+            tab('chats');
         }
 
-        // --- CHAT LIST LOGIC ---
+        // --- CHATS ---
         async function loadChats() {
             const data = await fetch(`/chats/${me.username}`).then(r => r.json());
             const list = document.getElementById('view-chats');
-            
-            if(data.length === 0) {
-                list.innerHTML = `<div class="text-center p-10 text-zinc-500 text-sm">Nenhuma conversa.<br>Use o botão azul (+) para iniciar.</div>`;
-                return;
-            }
-
-            list.innerHTML = data.map(c => {
-                const pic = c.avatar && c.avatar.length > 10 ? c.avatar : `https://ui-avatars.com/api/?name=${c.contact}&background=random`;
-                const isAudio = c.last_type === 'audio';
-                const msgText = isAudio ? '🎵 Áudio' : (c.last_msg || 'Nova conversa');
-                const unreadClass = c.unread > 0 ? 'text-white font-bold' : 'text-zinc-400';
-                const bgUnread = c.unread > 0 ? '<div class="w-2 h-2 bg-blue-500 rounded-full"></div>' : '';
-
-                return `
-                <div onclick="openChat('${c.contact}')" class="p-4 flex items-center gap-4 hover:bg-zinc-900 cursor-pointer active:bg-zinc-800 transition border-l-2 ${c.unread > 0 ? 'border-blue-500 bg-zinc-900/30' : 'border-transparent'}">
-                    <img src="${pic}" class="w-12 h-12 rounded-full object-cover bg-zinc-800">
-                    <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-center mb-1">
-                            <h4 class="font-bold truncate text-sm text-zinc-200">${c.contact}</h4>
+            list.innerHTML = data.map(c => `
+                <div onclick="openChat('${c.contact}')" class="p-4 flex items-center gap-3 border-b border-zinc-800 cursor-pointer active:bg-zinc-800">
+                    <img src="${c.avatar || 'https://ui-avatars.com/api/?name='+c.contact}" class="w-12 h-12 rounded-full object-cover bg-zinc-800">
+                    <div class="flex-1">
+                        <div class="flex justify-between">
+                            <h4 class="font-bold text-sm">${c.contact}</h4>
                             <span class="text-[10px] text-zinc-500">${c.last_time || ''}</span>
                         </div>
-                        <div class="flex justify-between items-center">
-                            <p class="text-xs truncate ${unreadClass} max-w-[80%]">${c.last_sender === me.username ? '<span class="opacity-50">Você: </span>' : ''}${msgText}</p>
-                            ${c.unread > 0 ? `<div class="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">${c.unread}</div>` : ''}
-                        </div>
+                        <p class="text-xs text-zinc-400 truncate">${c.last_type === 'audio' ? '🎵 Áudio' : (c.last_msg || 'Nova conversa')}</p>
                     </div>
-                </div>`;
-            }).join('');
+                    ${c.unread > 0 ? `<div class="w-2 h-2 bg-blue-500 rounded-full"></div>` : ''}
+                </div>
+            `).join('');
         }
 
-        // --- MESSAGE & AUDIO LOGIC ---
-        async function openChat(name) {
-            active = name;
+        async function openChat(u) {
+            active = u;
             document.getElementById('chat-win').classList.remove('hidden');
-            document.getElementById('h_name').innerText = name;
+            document.getElementById('chat_h_name').innerText = u;
             
-            // Busca dados atualizados do usuário (foto)
-            const userInfo = await fetch(`/user/${name}`).then(r => r.json());
-            const pic = userInfo.avatar && userInfo.avatar.length > 10 ? userInfo.avatar : `https://ui-avatars.com/api/?name=${name}&background=random`;
-            document.getElementById('h_img').src = pic;
-
-            socket.emit('mark_read', { s: active, r: me.username });
+            const info = await fetch('/user/'+u).then(r => r.json());
+            document.getElementById('chat_h_img').src = info.avatar || `https://ui-avatars.com/api/?name=${u}`;
+            
             loadMsgs();
-            loadChats(); // Atualiza contagem de não lidos na home
+            socket.emit('mark_read', {s: active, r: me.username});
+        }
+
+        function closeChat() {
+            document.getElementById('chat-win').classList.add('hidden');
+            active = null;
+            loadChats();
         }
 
         async function loadMsgs() {
             if(!active) return;
             const msgs = await fetch(`/messages/${me.username}/${active}`).then(r => r.json());
             const flow = document.getElementById('msg_flow');
-            
             flow.innerHTML = msgs.map(m => {
-                let content = '';
-                if(m.type === 'audio') {
-                    content = `<audio controls src="${m.c}" class="my-1"></audio>`;
-                } else {
-                    content = `<p class="text-sm break-words">${m.c}</p>`;
-                }
-
-                const checkmarks = m.s === me.username ? 
-                    (m.status === 2 ? '<span class="text-blue-300 ml-1">✓✓</span>' : '<span class="text-zinc-400 ml-1">✓</span>') : '';
-
-                return `
-                <div class="${m.s === me.username ? 'msg-me' : 'msg-them'}">
-                    ${content}
-                    <div class="flex justify-end items-center mt-1 gap-1">
-                        <span class="text-[9px] opacity-70">${m.f_time}</span>
-                        ${checkmarks}
-                    </div>
-                </div>`;
+                const content = m.type === 'audio' 
+                    ? `<audio controls src="${m.c}" class="h-8 w-48"></audio>`
+                    : `<p class="text-sm">${m.c}</p>`;
+                return `<div class="${m.s === me.username ? 'msg-me' : 'msg-them'}">${content}</div>`;
             }).join('');
-            
             flow.scrollTop = flow.scrollHeight;
         }
 
-        function sendMsg() {
-            const input = document.getElementById('m_in');
-            const val = input.value.trim();
-            if(!val || !active) return;
-            
-            socket.emit('send_msg', { s: me.username, r: active, c: val, type: 'text' });
-            input.value = '';
-            input.focus();
+        function sendMsg(type='text', content=null) {
+            const txt = document.getElementById('m_in').value;
+            const c = content || txt;
+            if(!c || !active) return;
+
+            socket.emit('send_msg', { s: me.username, r: active, c: c, type: type });
+            if(type === 'text') document.getElementById('m_in').value = '';
         }
 
-        // --- GRAVAÇÃO DE ÁUDIO ---
+        // --- ÁUDIO ---
         async function toggleRecording() {
-            if (!isRecording) {
-                // Iniciar Gravação
+            const btn = document.getElementById('mic_btn');
+            if(!isRecording) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     mediaRecorder = new MediaRecorder(stream);
                     audioChunks = [];
-                    
-                    mediaRecorder.ondataavailable = event => { audioChunks.push(event.data); };
-                    
+                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
                     mediaRecorder.onstop = () => {
-                        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }); // webm é mais compatível
                         const reader = new FileReader();
-                        reader.readAsDataURL(audioBlob);
-                        reader.onloadend = () => {
-                            const base64Audio = reader.result;
-                            socket.emit('send_msg', { s: me.username, r: active, c: base64Audio, type: 'audio' });
-                        };
+                        reader.readAsDataURL(new Blob(audioChunks, {type:'audio/webm'}));
+                        reader.onloadend = () => sendMsg('audio', reader.result);
                     };
-
                     mediaRecorder.start();
                     isRecording = true;
-                    
-                    // UI Feedback
-                    document.getElementById('rec_indicator').classList.remove('hidden');
-                    document.getElementById('mic_btn').classList.add('text-red-500', 'bg-red-500/10');
-                    document.getElementById('m_in').placeholder = "Gravando áudio...";
-                    document.getElementById('m_in').disabled = true;
-
-                } catch (err) {
-                    alert("Erro: Permissão de microfone negada.");
-                    console.error(err);
-                }
+                    btn.innerText = '⬛';
+                    btn.classList.add('text-red-500');
+                    document.getElementById('m_in').placeholder = "Gravando...";
+                } catch(e) { alert("Microfone bloqueado"); }
             } else {
-                // Parar e Enviar
-                if(mediaRecorder) mediaRecorder.stop();
+                mediaRecorder.stop();
                 isRecording = false;
-                
-                // UI Reset
-                document.getElementById('rec_indicator').classList.add('hidden');
-                document.getElementById('mic_btn').classList.remove('text-red-500', 'bg-red-500/10');
+                btn.innerText = '🎤';
+                btn.classList.remove('text-red-500');
                 document.getElementById('m_in').placeholder = "Mensagem...";
-                document.getElementById('m_in').disabled = false;
             }
         }
 
-        // --- STATUS SYSTEM ---
+        // --- STATUS ---
         async function postStatus(e) {
-            const file = e.target.files[0];
-            if(!file) return;
-            
-            // Limite simples (imagem muito grande trava o socket/sqlite)
-            if(file.size > 5 * 1024 * 1024) return alert("Imagem muito grande! Max 5MB.");
-
-            const reader = new FileReader();
-            reader.onload = async () => {
-                const res = await fetch('/post-status', { 
-                    method:'POST', 
-                    headers:{'Content-Type':'application/json'}, 
-                    body:JSON.stringify({username:me.username, content:reader.result})
+            const f = e.target.files[0];
+            if(!f) return;
+            const r = new FileReader();
+            r.onload = async () => {
+                await fetch('/post-status', {
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({username:me.username, content:r.result})
                 });
-                if(res.ok) { loadStatus(); tab('status'); }
+                loadStatus();
             };
-            reader.readAsDataURL(file);
+            r.readAsDataURL(f);
         }
 
         async function loadStatus() {
-            const res = await fetch('/get-status').then(r => r.json());
-            document.getElementById('st_grid').innerHTML = res.map(s => {
-                const pic = s.avatar && s.avatar.length > 10 ? s.avatar : `https://ui-avatars.com/api/?name=${s.username}&background=random`;
-                return `
-                <div class="aspect-[9/16] bg-zinc-800 rounded-xl overflow-hidden relative border border-zinc-700 group">
-                    <img src="${s.content}" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition duration-500">
-                    <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-3 pt-10">
-                        <div class="flex items-center gap-2">
-                            <img src="${pic}" class="w-6 h-6 rounded-full border border-white/20">
-                            <span class="text-[10px] font-bold text-white shadow-black drop-shadow-md">${s.username}</span>
-                        </div>
+            const data = await fetch('/get-status').then(r => r.json());
+            document.getElementById('st_grid').innerHTML = data.map(s => `
+                <div class="aspect-[9/16] bg-zinc-800 rounded-xl overflow-hidden relative">
+                    <img src="${s.content}" class="w-full h-full object-cover">
+                    <div class="absolute bottom-2 left-2 flex gap-2 items-center">
+                        <img src="${s.avatar || 'https://ui-avatars.com/api/?name='+s.username}" class="w-5 h-5 rounded-full border border-white">
+                        <span class="text-[10px] font-bold shadow-black drop-shadow-md">${s.username}</span>
                     </div>
-                </div>`;
-            }).join('');
+                </div>
+            `).join('');
         }
 
-        // --- UX HELPERS ---
-        function tab(t) {
-            ['chats','status','profile'].forEach(v => {
-                document.getElementById('view-'+v).classList.add('hidden');
-                document.getElementById('t-'+v).className = 'flex-1 py-4 text-xs font-bold tab-inactive transition-all';
-            });
-            document.getElementById('view-'+t).classList.remove('hidden');
-            document.getElementById('t-'+t).className = 'flex-1 py-4 text-xs font-bold tab-active transition-all';
-            
-            document.getElementById('fab-btn').classList.toggle('hidden', t !== 'chats');
-            
-            if(t==='status') loadStatus();
-            if(t==='chats') loadChats();
-        }
+        // --- SOCKET ---
+        socket.on('new_msg', m => {
+            if(active && (m.s === active || m.r === active)) loadMsgs();
+            loadChats();
+        });
+        socket.on('msg_sent_ok', () => { if(active) loadMsgs(); loadChats(); });
 
-        function toggleSettings() { document.getElementById('settings-menu').classList.toggle('hidden'); }
-        function closeChat() { document.getElementById('chat-win').classList.add('hidden'); active = null; loadChats(); }
-        function logout() { localStorage.removeItem('red_v22'); location.reload(); }
-        
+        // Utils Modal
         function openNewChatModal() { document.getElementById('new-chat-modal').classList.remove('hidden'); }
         function closeNewChatModal() { document.getElementById('new-chat-modal').classList.add('hidden'); }
-        
         async function startNewChat() {
             const u = document.getElementById('nc_input').value.trim();
-            if(!u || u === me.username) return alert("Usuário inválido");
             const res = await fetch('/user/'+u).then(r => r.json());
-            if(res.username) { closeNewChatModal(); openChat(u); } else alert("Usuário não encontrado");
+            if(res.username) { closeNewChatModal(); openChat(u); } else alert("Não encontrado");
         }
-
-        // --- SOCKET EVENTS ---
-        socket.on('new_msg', (msg) => {
-            if(active && (msg.s === active || msg.r === active)) {
-                loadMsgs(); // Se estou com o chat aberto, atualiza
-                socket.emit('mark_read', { s: active, r: me.username }); // Marca como lido na hora
-            } else {
-                // Som de notificação (opcional)
-            }
-            loadChats(); // Atualiza a lista da home
-        });
-
-        socket.on('msg_sent_ok', () => { if(active) loadMsgs(); loadChats(); });
-        socket.on('msgs_read', (d) => { if(active && d.by === active) loadMsgs(); });
-
+        function logout() { localStorage.removeItem('red_v3'); location.reload(); }
     </script>
 </body>
 </html>
