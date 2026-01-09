@@ -22,30 +22,29 @@ db.serialize(() => {
 const online = {};
 
 io.on('connection', (socket) => {
-    // Ao conectar, registra o usuário no mapa de online
     socket.on('join', (u) => { 
         socket.username = u; 
         online[u] = socket.id; 
-        console.log(`[ON] ${u} entrou.`);
+        console.log(` Usuário ${u} conectado.`);
     });
 
     socket.on('send_msg', (d) => {
-        const targetSocketId = online[d.r]; // Pega o ID do socket do destinatário
-        const initialStatus = targetSocketId ? 1 : 0; // 1 = Recebido no server/online, 0 = Enviado
+        const targetSocket = online[d.r];
+        // Status inicial: 1 se online, 0 se offline
+        const initialStatus = targetSocket ? 1 : 0;
 
         db.run("INSERT INTO messages (s, r, c, type, status) VALUES (?, ?, ?, ?, ?)", [d.s, d.r, d.c, d.type, initialStatus], function(err) {
-            if(err) return console.error(err);
+            if(err) return;
             
             db.get("SELECT *, strftime('%H:%M', time) as f_time FROM messages WHERE id = ?", [this.lastID], (err, row) => {
-                if(!row) return;
-
-                // 1. Envia para o Destinatário (se online)
-                if(targetSocketId) {
-                    io.to(targetSocketId).emit('new_msg', row);
+                if(row) {
+                    // Envia para o destinatário
+                    if(targetSocket) {
+                        io.to(targetSocket).emit('new_msg', row);
+                    }
+                    // Confirmação para o remetente para atualizar a tela dele instantaneamente
+                    socket.emit('msg_sent_ok', row);
                 }
-                
-                // 2. Confirma para o Remetente (atualiza a tela dele também)
-                socket.emit('msg_sent_ok', row);
             });
         });
     });
@@ -61,14 +60,12 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- API ROUTES ---
-
+// API ROUTES
 app.post('/register', async (req, res) => {
-    if(!req.body.username || !req.body.password) return res.status(400).json({error: "Dados incompletos"});
     try {
         const h = await bcrypt.hash(req.body.password, 10);
-        db.run("INSERT INTO users (username, password, bio, avatar) VALUES (?, ?, 'Red Protocol User', '')", [req.body.username, h], (e) => {
-            if(e) return res.status(400).json({error: "Usuário já existe"});
+        db.run("INSERT INTO users (username, password, bio, avatar) VALUES (?, ?, 'Disponível', '')", [req.body.username, h], (e) => {
+            if(e) return res.status(400).send();
             res.json({ok: true});
         });
     } catch(e) { res.status(500).send(); }
@@ -84,6 +81,7 @@ app.post('/login', (req, res) => {
 });
 
 app.get('/chats/:me', (req, res) => {
+    const me = req.params.me;
     const q = `
     SELECT DISTINCT contact, avatar, 
     (SELECT c FROM messages WHERE (s=contact AND r=?) OR (s=? AND r=contact) ORDER BY time DESC LIMIT 1) as last_msg, 
@@ -93,11 +91,11 @@ app.get('/chats/:me', (req, res) => {
     (SELECT s FROM messages WHERE (s=contact AND r=?) OR (s=? AND r=contact) ORDER BY time DESC LIMIT 1) as last_sender,
     (SELECT COUNT(*) FROM messages WHERE s=contact AND r=? AND status < 2) as unread
     FROM (SELECT r as contact FROM messages WHERE s=? UNION SELECT s as contact FROM messages WHERE r=?) 
-    JOIN users ON users.username = contact`;
+    JOIN users ON users.username = contact
+    ORDER BY (SELECT time FROM messages WHERE (s=contact AND r=?) OR (s=? AND r=contact) ORDER BY time DESC LIMIT 1) DESC`;
     
-    db.all(q, [req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me, req.params.me], (err, rows) => {
-        res.json(rows || []);
-    });
+    const params = [me, me, me, me, me, me, me, me, me, me, me, me, me, me, me];
+    db.all(q, params, (err, rows) => res.json(rows || []));
 });
 
 app.get('/messages/:u1/:u2', (req, res) => {
@@ -105,16 +103,20 @@ app.get('/messages/:u1/:u2', (req, res) => {
         [req.params.u1, req.params.u2, req.params.u2, req.params.u1], (e, r) => res.json(r || []));
 });
 
-// Busca dados públicos do usuário (usado no novo modal de busca)
 app.get('/user/:u', (req, res) => {
-    db.get("SELECT username, avatar, bio FROM users WHERE username = ?", [req.params.u], (e, r) => {
-        if(r) res.json(r);
-        else res.status(404).json({error: "User not found"});
-    });
+    db.get("SELECT username, avatar, bio FROM users WHERE username = ?", [req.params.u], (e, r) => res.json(r || {}));
 });
 
-app.post('/update-profile', (req, res) => db.run("UPDATE users SET bio = ?, avatar = ? WHERE username = ?", [req.body.bio, req.body.avatar, req.body.username], () => res.json({ok:true})));
-app.post('/post-status', (req, res) => db.run("INSERT INTO stories (username, content) VALUES (?, ?)", [req.body.username, req.body.content], () => res.json({ok:true})));
-app.get('/get-status', (req, res) => db.all("SELECT stories.*, users.avatar FROM stories JOIN users ON stories.username = users.username WHERE time > datetime('now', '-24 hours') ORDER BY time DESC", (e, r) => res.json(r || [])));
+app.post('/update-profile', (req, res) => {
+    db.run("UPDATE users SET bio = ?, avatar = ? WHERE username = ?", [req.body.bio, req.body.avatar, req.body.username], () => res.json({ok:true}));
+});
 
-server.listen(3001, () => console.log('SERVER ON: 3001'));
+app.post('/post-status', (req, res) => {
+    db.run("INSERT INTO stories (username, content) VALUES (?, ?)", [req.body.username, req.body.content], () => res.json({ok:true}));
+});
+
+app.get('/get-status', (req, res) => {
+    db.all("SELECT stories.*, users.avatar FROM stories JOIN users ON stories.username = users.username WHERE time > datetime('now', '-24 hours') ORDER BY time DESC", (e, r) => res.json(r || []));
+});
+
+server.listen(3001, () => console.log('Servidor rodando na porta 3001'));
