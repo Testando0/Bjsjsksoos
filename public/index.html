@@ -17,8 +17,13 @@
         .tab-inactive { color: #71717a; border-bottom: 2px solid transparent; }
         
         /* Balões */
-        .msg-me { background: #2563eb; color: white; border-radius: 16px 16px 2px 16px; align-self: flex-end; max-width: 85%; padding: 10px 14px; margin-bottom: 8px; }
-        .msg-them { background: #27272a; color: white; border-radius: 16px 16px 16px 2px; align-self: flex-start; max-width: 85%; padding: 10px 14px; margin-bottom: 8px; }
+        .msg-me { background: #2563eb; color: white; border-radius: 16px 16px 2px 16px; align-self: flex-end; max-width: 85%; padding: 8px 12px; margin-bottom: 6px; position: relative; min-width: 80px; }
+        .msg-them { background: #27272a; color: white; border-radius: 16px 16px 16px 2px; align-self: flex-start; max-width: 85%; padding: 8px 12px; margin-bottom: 6px; }
+        
+        /* Ticks e Meta */
+        .msg-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 2px; font-size: 10px; color: rgba(255,255,255,0.7); }
+        .tick-icon { width: 14px; height: 14px; }
+        .tick-blue { color: #4ade80; } /* Verde claro ou azul claro para destaque */
         
         /* Animações e Utilitários */
         .modal-up { animation: slideUp 0.3s forwards; }
@@ -42,11 +47,9 @@
         
         <header class="h-16 px-5 flex justify-between items-center bg-[#18181b] border-b border-zinc-800 relative z-[100]">
             <h1 class="text-lg font-bold">Chat V3</h1>
-            
             <button onclick="toggleSettings()" class="relative">
                 <img id="header_pic" class="w-9 h-9 rounded-full object-cover border border-zinc-600 bg-zinc-800">
             </button>
-
             <div id="settings-menu" class="hidden absolute right-4 top-14 w-48 bg-[#18181b] border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-[200]">
                 <button onclick="goToProfile()" class="w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm border-b border-zinc-800">👤 Meu Perfil</button>
                 <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm text-red-500">🚪 Sair</button>
@@ -59,7 +62,6 @@
         </nav>
 
         <main class="flex-1 overflow-y-auto relative">
-            
             <div id="view-chats" class="pb-24"></div>
 
             <div id="view-status" class="hidden p-4 pb-24">
@@ -71,7 +73,7 @@
                 <div id="st_grid" class="grid grid-cols-2 gap-3"></div>
             </div>
 
-            <div id="view-profile" class="hidden p-6 flex flex-col items-center animate-fade">
+            <div id="view-profile" class="hidden p-6 flex flex-col items-center">
                 <div class="relative mb-6 group cursor-pointer" onclick="document.getElementById('p_file').click()">
                     <img id="profile_pic_large" class="w-32 h-32 rounded-full border-4 border-[#18181b] object-cover">
                     <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
@@ -79,7 +81,6 @@
                     </div>
                 </div>
                 <input type="file" id="p_file" class="hidden" accept="image/*" onchange="previewAvatar(event)">
-                
                 <input id="my_bio" placeholder="Sua bio" class="w-full bg-[#18181b] p-4 rounded-xl border border-zinc-800 text-white mb-4">
                 <button onclick="saveProfile()" class="w-full bg-blue-600 py-4 rounded-xl font-bold">SALVAR PERFIL</button>
                 <button onclick="tab('chats')" class="w-full mt-2 py-4 text-zinc-500 text-sm">Voltar</button>
@@ -97,26 +98,39 @@
             <h2 class="text-lg font-bold">Nova Conversa</h2>
         </header>
         <div class="p-6">
-            <input id="nc_input" class="w-full bg-[#18181b] p-4 rounded-xl border border-zinc-800 text-white" placeholder="Nome do usuário...">
+            <input id="nc_input" class="w-full bg-[#18181b] p-4 rounded-xl border border-zinc-800 text-white" placeholder="Nome do usuário exato...">
             <button onclick="startNewChat()" class="w-full mt-4 bg-blue-600 py-4 rounded-xl font-bold">INICIAR</button>
+        </div>
+    </div>
+
+    <div id="other-profile-modal" class="fixed inset-0 z-[2500] hidden flex flex-col bg-black/90 items-center justify-center p-6 backdrop-blur-sm" onclick="closeOtherProfile()">
+        <div class="bg-[#18181b] w-full max-w-xs rounded-2xl p-6 flex flex-col items-center border border-zinc-800 shadow-2xl relative" onclick="event.stopPropagation()">
+            <button onclick="closeOtherProfile()" class="absolute top-3 right-3 text-zinc-500">✕</button>
+            <img id="op_avatar" class="w-32 h-32 rounded-full object-cover border-4 border-[#27272a] mb-4 bg-zinc-800">
+            <h2 id="op_name" class="text-xl font-bold text-white mb-1">Nome</h2>
+            <p id="op_bio" class="text-zinc-400 text-center text-sm mb-6">Sem bio.</p>
+            <button onclick="closeOtherProfile()" class="w-full bg-zinc-800 py-3 rounded-xl text-sm font-bold hover:bg-zinc-700">FECHAR</button>
         </div>
     </div>
 
     <div id="chat-win" class="fixed inset-0 bg-[#09090b] z-[1000] hidden flex flex-col">
         <header class="h-16 bg-[#18181b] flex items-center px-2 border-b border-zinc-800 shrink-0">
             <button onclick="closeChat()" class="p-3 text-zinc-400 mr-2"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
-            <div class="flex items-center gap-3">
-                <img id="chat_h_img" class="w-10 h-10 rounded-full object-cover bg-zinc-800">
-                <h4 id="chat_h_name" class="font-bold text-sm">--</h4>
+            <div class="flex items-center gap-3 cursor-pointer hover:bg-white/5 p-1 px-2 rounded-lg transition" onclick="viewContactProfile()">
+                <img id="chat_h_img" class="w-10 h-10 rounded-full object-cover bg-zinc-800 border border-zinc-600">
+                <div>
+                    <h4 id="chat_h_name" class="font-bold text-sm">--</h4>
+                    <span class="text-[10px] text-green-500 font-bold block">Online</span>
+                </div>
             </div>
         </header>
         
         <div id="msg_flow" class="flex-1 overflow-y-auto p-4 flex flex-col"></div>
         
-        <div class="p-3 bg-[#18181b] flex items-center gap-2 border-t border-zinc-800">
-            <button id="mic_btn" onclick="toggleRecording()" class="w-12 h-12 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center">🎤</button>
-            <input id="m_in" class="flex-1 bg-[#09090b] p-3 rounded-xl border border-zinc-800 text-white h-12" placeholder="Mensagem..." onkeydown="if(event.key==='Enter') sendMsg()">
-            <button onclick="sendMsg()" class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white">➤</button>
+        <div class="p-3 bg-[#18181b] flex items-center gap-2 border-t border-zinc-800 pb-safe">
+            <button id="mic_btn" onclick="toggleRecording()" class="w-12 h-12 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center hover:bg-zinc-700 transition">🎤</button>
+            <input id="m_in" class="flex-1 bg-[#09090b] p-3 rounded-xl border border-zinc-800 text-white h-12 focus:border-blue-600 transition" placeholder="Mensagem..." onkeydown="if(event.key==='Enter') sendMsg()">
+            <button onclick="sendMsg()" class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white hover:bg-blue-500 transition">➤</button>
         </div>
     </div>
 
@@ -125,19 +139,29 @@
         let me = null, active = null;
         let mediaRecorder = null, audioChunks = [], isRecording = false;
 
-        // --- SISTEMA DE NAVEGAÇÃO (TAB) REESCRITO ---
+        // --- TICK ICONS (SVG) ---
+        function getTickIcon(status) {
+            // 0: Enviado (1 cinza), 1: Recebido (2 cinzas), 2: Lido (2 azuis)
+            const color = status == 2 ? '#3b82f6' : '#71717a'; // Azul ou Cinza
+            
+            if (status == 0) {
+                // 1 Check
+                return `<svg class="w-3 h-3 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7"/></svg>`;
+            } else {
+                // 2 Checks (Double)
+                return `<svg class="w-4 h-4" style="color:${color}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/><path d="M20 12L13 19l-2-2"/></svg>`; 
+            }
+        }
+
+        // --- SISTEMA DE NAVEGAÇÃO ---
         function tab(t) {
-            // Esconde todas as views
             ['view-chats', 'view-status', 'view-profile'].forEach(id => document.getElementById(id).classList.add('hidden'));
             
-            // Reseta estilo das abas
             document.getElementById('t-chats').className = 'flex-1 py-4 text-xs font-bold tab-inactive';
             document.getElementById('t-status').className = 'flex-1 py-4 text-xs font-bold tab-inactive';
             
-            // Mostra a view desejada
             document.getElementById('view-'+t).classList.remove('hidden');
             
-            // Ativa estilo da aba (se houver)
             if(t !== 'profile') {
                 document.getElementById('t-'+t).className = 'flex-1 py-4 text-xs font-bold tab-active';
                 document.getElementById('fab-btn').classList.remove('hidden');
@@ -145,21 +169,13 @@
                 document.getElementById('fab-btn').classList.add('hidden');
             }
 
-            // Ações específicas
             if(t === 'chats') loadChats();
             if(t === 'status') loadStatus();
-            
-            // Fecha menu se estiver aberto
             document.getElementById('settings-menu').classList.add('hidden');
         }
 
-        function toggleSettings() {
-            document.getElementById('settings-menu').classList.toggle('hidden');
-        }
-
-        function goToProfile() {
-            tab('profile');
-        }
+        function toggleSettings() { document.getElementById('settings-menu').classList.toggle('hidden'); }
+        function goToProfile() { tab('profile'); }
 
         // --- AUTH ---
         async function access(type) {
@@ -179,7 +195,7 @@
                     } else {
                         alert("Cadastrado! Faça login.");
                     }
-                } else alert("Erro. Tente outro usuário.");
+                } else alert("Erro ou usuário já existe.");
             } catch(e) { alert("Erro de conexão"); }
         }
 
@@ -192,19 +208,20 @@
                     document.getElementById('app').classList.remove('hidden');
                     socket.emit('join', me.username);
                     updateUI();
-                    tab('chats'); // Inicia na tela de chats
+                    tab('chats');
                 } catch(e) { localStorage.clear(); }
             }
         };
 
         function updateUI() {
-            const pic = me.avatar || `https://ui-avatars.com/api/?name=${me.username}`;
+            // Garante que se a foto for vazia, usa ui-avatars
+            const pic = me.avatar && me.avatar.length > 10 ? me.avatar : `https://ui-avatars.com/api/?name=${me.username}&background=random`;
             document.getElementById('header_pic').src = pic;
             document.getElementById('profile_pic_large').src = pic;
             document.getElementById('my_bio').value = me.bio || '';
         }
 
-        // --- PERFIL ---
+        // --- PERFIL USUÁRIO ---
         function previewAvatar(e) {
             const f = e.target.files[0];
             if(f) {
@@ -215,10 +232,11 @@
         }
 
         async function saveProfile() {
-            const avatar = document.getElementById('profile_pic_large').src;
+            const avatarSrc = document.getElementById('profile_pic_large').src;
             const bio = document.getElementById('my_bio').value;
-            // Só envia se for base64 (imagem nova), senão envia vazio pra manter atual
-            const sendAvatar = avatar.startsWith('data:') ? avatar : ''; 
+            
+            // Verifica se é imagem base64 nova ou se é link antigo
+            const sendAvatar = avatarSrc.startsWith('data:') ? avatarSrc : (me.avatar || '');
             
             await fetch('/update-profile', {
                 method:'POST', headers:{'Content-Type':'application/json'}, 
@@ -233,52 +251,104 @@
             tab('chats');
         }
 
-        // --- CHATS ---
+        // --- VIEW OTHER PROFILE ---
+        async function viewContactProfile() {
+            if(!active) return;
+            // Busca dados frescos do usuário
+            const info = await fetch('/user/'+active).then(r => r.json());
+            
+            document.getElementById('op_name').innerText = info.username;
+            document.getElementById('op_bio').innerText = info.bio || "Sem bio definida.";
+            document.getElementById('op_avatar').src = info.avatar && info.avatar.length > 10 ? info.avatar : `https://ui-avatars.com/api/?name=${info.username}`;
+            
+            document.getElementById('other-profile-modal').classList.remove('hidden');
+            document.getElementById('other-profile-modal').classList.add('flex');
+        }
+
+        function closeOtherProfile() {
+            document.getElementById('other-profile-modal').classList.add('hidden');
+            document.getElementById('other-profile-modal').classList.remove('flex');
+        }
+
+        // --- CHATS (Tela Inicial) ---
         async function loadChats() {
             const data = await fetch(`/chats/${me.username}`).then(r => r.json());
             const list = document.getElementById('view-chats');
-            list.innerHTML = data.map(c => `
-                <div onclick="openChat('${c.contact}')" class="p-4 flex items-center gap-3 border-b border-zinc-800 cursor-pointer active:bg-zinc-800">
-                    <img src="${c.avatar || 'https://ui-avatars.com/api/?name='+c.contact}" class="w-12 h-12 rounded-full object-cover bg-zinc-800">
-                    <div class="flex-1">
-                        <div class="flex justify-between">
-                            <h4 class="font-bold text-sm">${c.contact}</h4>
-                            <span class="text-[10px] text-zinc-500">${c.last_time || ''}</span>
+            
+            if(data.length === 0) {
+                list.innerHTML = `<div class="text-center text-zinc-500 mt-10 p-5">Nenhuma conversa.<br>Clique no botão + para começar.</div>`;
+                return;
+            }
+
+            list.innerHTML = data.map(c => {
+                const isMe = c.last_sender === me.username;
+                const pic = c.avatar && c.avatar.length > 10 ? c.avatar : `https://ui-avatars.com/api/?name=${c.contact}&background=random`;
+                
+                // Tick só aparece se FUI EU que mandei a última msg
+                const tickHtml = isMe ? getTickIcon(c.last_status) : '';
+
+                return `
+                <div onclick="openChat('${c.contact}')" class="p-4 flex items-center gap-3 border-b border-zinc-800 cursor-pointer active:bg-zinc-800 transition">
+                    <img src="${pic}" class="w-12 h-12 rounded-full object-cover bg-zinc-800 border border-zinc-700">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <h4 class="font-bold text-sm text-zinc-100 truncate">${c.contact}</h4>
+                            <span class="text-[10px] text-zinc-500 shrink-0 ml-2">${c.last_time || ''}</span>
                         </div>
-                        <p class="text-xs text-zinc-400 truncate">${c.last_type === 'audio' ? '🎵 Áudio' : (c.last_msg || 'Nova conversa')}</p>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-1 text-xs text-zinc-400 truncate pr-2">
+                                ${tickHtml}
+                                <span class="truncate">${c.last_type === 'audio' ? '🎵 Áudio' : (c.last_msg || '...')}</span>
+                            </div>
+                            ${c.unread > 0 ? `<div class="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0">${c.unread}</div>` : ''}
+                        </div>
                     </div>
-                    ${c.unread > 0 ? `<div class="w-2 h-2 bg-blue-500 rounded-full"></div>` : ''}
                 </div>
-            `).join('');
+            `}).join('');
         }
 
+        // --- CONVERSA (Chat Aberto) ---
         async function openChat(u) {
             active = u;
             document.getElementById('chat-win').classList.remove('hidden');
             document.getElementById('chat_h_name').innerText = u;
             
             const info = await fetch('/user/'+u).then(r => r.json());
-            document.getElementById('chat_h_img').src = info.avatar || `https://ui-avatars.com/api/?name=${u}`;
+            const pic = info.avatar && info.avatar.length > 10 ? info.avatar : `https://ui-avatars.com/api/?name=${u}`;
+            document.getElementById('chat_h_img').src = pic;
             
-            loadMsgs();
-            socket.emit('mark_read', {s: active, r: me.username});
+            await loadMsgs();
+            socket.emit('mark_read', {s: active, r: me.username}); // Eu li as msgs DELE
         }
 
         function closeChat() {
             document.getElementById('chat-win').classList.add('hidden');
             active = null;
-            loadChats();
+            loadChats(); // Atualiza lista para remover bolinha azul
         }
 
         async function loadMsgs() {
             if(!active) return;
             const msgs = await fetch(`/messages/${me.username}/${active}`).then(r => r.json());
             const flow = document.getElementById('msg_flow');
+            
             flow.innerHTML = msgs.map(m => {
+                const isMe = m.s === me.username;
                 const content = m.type === 'audio' 
                     ? `<audio controls src="${m.c}" class="h-8 w-48"></audio>`
-                    : `<p class="text-sm">${m.c}</p>`;
-                return `<div class="${m.s === me.username ? 'msg-me' : 'msg-them'}">${content}</div>`;
+                    : `<p class="text-sm leading-relaxed">${m.c}</p>`;
+                
+                const tick = isMe ? getTickIcon(m.status) : '';
+                
+                return `
+                    <div class="${isMe ? 'msg-me' : 'msg-them'}">
+                        ${content}
+                        <div class="msg-meta">
+                            <span>${m.f_time}</span>
+                            ${isMe ? `<span>${tick}</span>` : ''}
+                        </div>
+                    </div>
+                `;
             }).join('');
             flow.scrollTop = flow.scrollHeight;
         }
@@ -288,6 +358,7 @@
             const c = content || txt;
             if(!c || !active) return;
 
+            // Envia status 0 (enviando)
             socket.emit('send_msg', { s: me.username, r: active, c: c, type: type });
             if(type === 'text') document.getElementById('m_in').value = '';
         }
@@ -308,20 +379,20 @@
                     };
                     mediaRecorder.start();
                     isRecording = true;
-                    btn.innerText = '⬛';
-                    btn.classList.add('text-red-500');
+                    btn.innerHTML = '<div class="w-3 h-3 bg-red-500 rounded-sm animate-pulse"></div>';
                     document.getElementById('m_in').placeholder = "Gravando...";
-                } catch(e) { alert("Microfone bloqueado"); }
+                    document.getElementById('m_in').disabled = true;
+                } catch(e) { alert("Microfone bloqueado pelo navegador."); }
             } else {
                 mediaRecorder.stop();
                 isRecording = false;
-                btn.innerText = '🎤';
-                btn.classList.remove('text-red-500');
+                btn.innerHTML = '🎤';
                 document.getElementById('m_in').placeholder = "Mensagem...";
+                document.getElementById('m_in').disabled = false;
             }
         }
 
-        // --- STATUS ---
+        // --- STATUS (Stories) ---
         async function postStatus(e) {
             const f = e.target.files[0];
             if(!f) return;
@@ -338,31 +409,59 @@
 
         async function loadStatus() {
             const data = await fetch('/get-status').then(r => r.json());
-            document.getElementById('st_grid').innerHTML = data.map(s => `
-                <div class="aspect-[9/16] bg-zinc-800 rounded-xl overflow-hidden relative">
+            document.getElementById('st_grid').innerHTML = data.map(s => {
+                const av = s.avatar && s.avatar.length > 10 ? s.avatar : `https://ui-avatars.com/api/?name=${s.username}`;
+                return `
+                <div class="aspect-[9/16] bg-zinc-800 rounded-xl overflow-hidden relative shadow-lg">
                     <img src="${s.content}" class="w-full h-full object-cover">
-                    <div class="absolute bottom-2 left-2 flex gap-2 items-center">
-                        <img src="${s.avatar || 'https://ui-avatars.com/api/?name='+s.username}" class="w-5 h-5 rounded-full border border-white">
-                        <span class="text-[10px] font-bold shadow-black drop-shadow-md">${s.username}</span>
+                    <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-black/30 via-transparent to-black/60"></div>
+                    <div class="absolute bottom-3 left-3 flex gap-2 items-center">
+                        <img src="${av}" class="w-8 h-8 rounded-full border-2 border-blue-500">
+                        <span class="text-xs font-bold text-white shadow-black drop-shadow-md">${s.username}</span>
                     </div>
                 </div>
-            `).join('');
+            `}).join('');
         }
 
-        // --- SOCKET ---
+        // --- SOCKET & EVENTOS EM TEMPO REAL ---
+        
+        // Recebi nova mensagem
         socket.on('new_msg', m => {
-            if(active && (m.s === active || m.r === active)) loadMsgs();
+            // Se estou com a janela aberta com essa pessoa, carrega msg e marca lido
+            if(active && m.s === active) {
+                loadMsgs();
+                socket.emit('mark_read', {s: active, r: me.username});
+            }
+            // Sempre atualiza a lista de chats (pra subir pro topo e mostrar bolinha)
             loadChats();
         });
-        socket.on('msg_sent_ok', () => { if(active) loadMsgs(); loadChats(); });
 
-        // Utils Modal
+        // Minha mensagem foi enviada com sucesso (recebe do servidor com ID e hora)
+        socket.on('msg_sent_ok', () => { 
+            if(active) loadMsgs(); 
+            loadChats(); 
+        });
+
+        // O outro usuário leu minhas mensagens
+        socket.on('msgs_read_update', (data) => {
+            // data.reader = quem leu
+            // Se estou conversando com quem leu, atualiza ticks para azul na hora
+            if(active === data.reader) {
+                loadMsgs();
+            }
+            // Atualiza home também (para tick ficar azul lá)
+            loadChats();
+        });
+
+        // Modais Utils
         function openNewChatModal() { document.getElementById('new-chat-modal').classList.remove('hidden'); }
         function closeNewChatModal() { document.getElementById('new-chat-modal').classList.add('hidden'); }
+        
         async function startNewChat() {
             const u = document.getElementById('nc_input').value.trim();
+            if(u === me.username) return alert("Não pode falar com você mesmo");
             const res = await fetch('/user/'+u).then(r => r.json());
-            if(res.username) { closeNewChatModal(); openChat(u); } else alert("Não encontrado");
+            if(res.username) { closeNewChatModal(); openChat(u); } else alert("Usuário não encontrado");
         }
         function logout() { localStorage.removeItem('red_v3'); location.reload(); }
     </script>
