@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Chat Profissional V3 RealTime</title>
+    <meta name="theme-color" content="#18181b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/manifest.json">
+    
+    <title>Chat V3 App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -12,41 +17,33 @@
         body { background: var(--bg-main); color: #f4f4f5; font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; }
         .hidden { display: none !important; }
         
-        /* Navegação */
-        .tab-active { color: var(--accent); border-bottom: 2px solid var(--accent); }
-        .tab-inactive { color: #71717a; border-bottom: 2px solid transparent; }
+        /* CORREÇÃO DA LARGURA DA BOLHA */
+        .msg-me { 
+            background: #2563eb; color: white; border-radius: 16px 16px 2px 16px; 
+            align-self: flex-end; 
+            width: fit-content;    /* Ajusta ao conteúdo */
+            max-width: 85%; 
+            padding: 8px 12px; margin-bottom: 6px; position: relative; 
+            word-wrap: break-word; /* Quebra texto longo */
+        }
+        .msg-them { 
+            background: #27272a; color: white; border-radius: 16px 16px 16px 2px; 
+            align-self: flex-start; 
+            width: fit-content;    /* Ajusta ao conteúdo */
+            max-width: 85%; 
+            padding: 8px 12px; margin-bottom: 6px; 
+            word-wrap: break-word;
+        }
         
-        /* Balões */
-        .msg-me { background: #2563eb; color: white; border-radius: 16px 16px 2px 16px; align-self: flex-end; max-width: 85%; padding: 6px 10px; margin-bottom: 6px; position: relative; min-width: 120px; }
-        .msg-them { background: #27272a; color: white; border-radius: 16px 16px 16px 2px; align-self: flex-start; max-width: 85%; padding: 6px 10px; margin-bottom: 6px; }
-        
-        /* Meta dados (Hora e Tick) */
         .msg-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 2px; font-size: 10px; color: rgba(255,255,255,0.7); }
-        
-        /* --- ESTILO NOVO: AUDIO PLAYER WHATSAPP --- */
-        .audio-player input[type=range] {
-            -webkit-appearance: none; 
-            background: transparent; 
-            width: 100%;
-        }
-        .audio-player input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 12px; width: 12px;
-            border-radius: 50%;
-            background: currentColor; /* Pega a cor do texto */
-            margin-top: -5px;
-            cursor: pointer;
-        }
-        .audio-player input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 3px;
-            background: currentColor;
-            opacity: 0.3;
-            border-radius: 2px;
-        }
+
+        /* Audio Player Styles */
+        .audio-player input[type=range] { -webkit-appearance: none; background: transparent; width: 100%; }
+        .audio-player input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: currentColor; margin-top: -5px; cursor: pointer; }
+        .audio-player input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 3px; background: currentColor; opacity: 0.3; border-radius: 2px; }
         .play-btn { transition: transform 0.1s; }
         .play-btn:active { transform: scale(0.9); }
 
-        /* Animações e Utils */
         .modal-up { animation: slideUp 0.3s forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         #toast-box { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
@@ -79,7 +76,9 @@
             <button onclick="toggleSettings()" class="relative">
                 <img id="header_pic" class="w-9 h-9 rounded-full object-cover border border-zinc-600 bg-zinc-800">
             </button>
-            <div id="settings-menu" class="hidden absolute right-4 top-14 w-48 bg-[#18181b] border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-[200]">
+            <div id="settings-menu" class="hidden absolute right-4 top-14 w-56 bg-[#18181b] border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-[200]">
+                <button id="install-btn" onclick="installApp()" class="hidden w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm border-b border-zinc-800 text-green-500 font-bold">📲 Instalar App</button>
+                
                 <button onclick="goToProfile()" class="w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm border-b border-zinc-800">👤 Meu Perfil</button>
                 <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm text-red-500">🚪 Sair</button>
             </div>
@@ -152,9 +151,7 @@
                 </div>
             </div>
         </header>
-        
         <div id="msg_flow" class="flex-1 overflow-y-auto p-4 flex flex-col pb-safe"></div>
-        
         <div class="p-3 bg-[#18181b] flex items-center gap-2 border-t border-zinc-800 pb-6">
             <button id="mic_btn" onclick="toggleRecording()" class="w-12 h-12 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center shrink-0">🎤</button>
             <input id="m_in" class="flex-1 bg-[#09090b] p-3 rounded-xl border border-zinc-800 text-white h-12" placeholder="Mensagem..." onkeydown="if(event.key==='Enter') sendMsg()">
@@ -163,356 +160,161 @@
     </div>
 
     <script>
-        const socket = io({ reconnection: true, reconnectionDelay: 500, reconnectionAttempts: 50 });
+        // --- PWA INSTALL LOGIC ---
+        let deferredPrompt;
+        
+        // Registra Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then(() => console.log('SW Registered'));
+        }
 
+        // Captura o evento de instalação
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('install-btn').classList.remove('hidden');
+        });
+
+        async function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    deferredPrompt = null;
+                    document.getElementById('install-btn').classList.add('hidden');
+                }
+            }
+        }
+
+        // --- SISTEMA ORIGINAL ---
+        const socket = io({ reconnection: true });
         let me = null, active = null;
         let mediaRecorder = null, audioChunks = [], isRecording = false;
-        let toastTimeout = null, lastToastUser = null;
-        let currentAudio = null; // Para parar um áudio quando outro começar
-
+        let toastTimeout = null, lastToastUser = null, currentAudio = null;
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
         function playBeep() {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.frequency.value = 800;
-            gain.gain.value = 0.1;
-            osc.start();
-            setTimeout(() => osc.stop(), 150);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.frequency.value = 800; gain.gain.value = 0.1;
+            osc.start(); setTimeout(() => osc.stop(), 150);
         }
 
-        // --- UTILS DE DESIGN ---
         function getTickIcon(status) {
             const color = status == 2 ? '#3b82f6' : '#71717a'; 
             if (status == 0) return `<svg class="w-3 h-3 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M5 13l4 4L19 7"/></svg>`;
             return `<svg class="w-4 h-4" style="color:${color}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/><path d="M20 12L13 19l-2-2"/></svg>`; 
         }
 
-        // --- FUNÇÕES DO PLAYER DE ÁUDIO WHATSAPP ---
+        // --- AUDIO PLAYER ---
         function toggleAudio(id) {
             const audio = document.getElementById(`audio_${id}`);
             const btnIcon = document.getElementById(`btn_icon_${id}`);
-            
-            // Pausa outros
             if(currentAudio && currentAudio !== audio) {
                 currentAudio.pause();
-                // Reseta ícone do anterior
                 const oldId = currentAudio.id.replace('audio_', '');
                 document.getElementById(`btn_icon_${oldId}`).innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
             }
-
             if (audio.paused) {
-                audio.play();
-                currentAudio = audio;
-                btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>'; // Pause icon
+                audio.play(); currentAudio = audio;
+                btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>'; 
             } else {
                 audio.pause();
-                btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'; // Play icon
+                btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
             }
         }
-
         function updateProgress(id) {
             const audio = document.getElementById(`audio_${id}`);
             const range = document.getElementById(`range_${id}`);
-            const timeDisplay = document.getElementById(`time_${id}`);
-            
-            const val = (audio.currentTime / audio.duration) * 100;
-            range.value = val || 0;
-            
-            const m = Math.floor(audio.currentTime / 60);
-            const s = Math.floor(audio.currentTime % 60);
-            timeDisplay.innerText = `${m}:${s < 10 ? '0'+s : s}`;
+            document.getElementById(`time_${id}`).innerText = `${Math.floor(audio.currentTime/60)}:${Math.floor(audio.currentTime%60).toString().padStart(2,'0')}`;
+            range.value = (audio.currentTime / audio.duration) * 100 || 0;
         }
-
         function seekAudio(id, val) {
             const audio = document.getElementById(`audio_${id}`);
-            const time = (val / 100) * audio.duration;
-            audio.currentTime = time;
+            audio.currentTime = (val / 100) * audio.duration;
         }
-
         function audioEnded(id) {
             document.getElementById(`btn_icon_${id}`).innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
             document.getElementById(`range_${id}`).value = 0;
-            document.getElementById(`time_${id}`).innerText = "0:00";
         }
-
         function setDuration(id) {
             const audio = document.getElementById(`audio_${id}`);
-            const m = Math.floor(audio.duration / 60);
-            const s = Math.floor(audio.duration % 60);
+            const m = Math.floor(audio.duration / 60); const s = Math.floor(audio.duration % 60);
             if(!isNaN(audio.duration)) document.getElementById(`time_${id}`).innerText = `${m}:${s < 10 ? '0'+s : s}`;
         }
 
-        // --- SOCKETS ---
-        socket.on('connect', () => {
-            if(me) {
-                socket.emit('join', me.username);
-                if(active) loadMsgs();
-                loadChats();
-            }
-        });
-        socket.on('new_msg', m => {
-            playBeep();
-            if(active && (m.s === active || m.r === active)) {
-                loadMsgs();
-                socket.emit('mark_read', {s: active, r: me.username});
-            } else showToast(`Nova mensagem de ${m.s}`, m.s);
-            loadChats();
-        });
+        // --- SOCKET HANDLERS ---
+        socket.on('connect', () => { if(me) { socket.emit('join', me.username); if(active) loadMsgs(); loadChats(); }});
+        socket.on('new_msg', m => { playBeep(); if(active && (m.s===active||m.r===active)) { loadMsgs(); socket.emit('mark_read',{s:active,r:me.username}); } else showToast(`Nova mensagem de ${m.s}`,m.s); loadChats(); });
         socket.on('msg_sent_ok', () => { if(active) loadMsgs(); loadChats(); });
-        socket.on('msgs_read_update', (data) => { if(active === data.reader) loadMsgs(); loadChats(); });
+        socket.on('msgs_read_update', d => { if(active===d.reader) loadMsgs(); loadChats(); });
 
         // --- UI GERAL ---
-        function showToast(msg, user) {
-            const box = document.getElementById('toast-box');
-            document.getElementById('toast-msg').innerText = msg;
-            box.classList.remove('-translate-y-24'); box.classList.add('translate-y-0');
-            lastToastUser = user;
-            if(toastTimeout) clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => { box.classList.add('-translate-y-24'); box.classList.remove('translate-y-0'); }, 3000);
+        function showToast(msg,u){ const b=document.getElementById('toast-box'); document.getElementById('toast-msg').innerText=msg; b.classList.remove('-translate-y-24'); b.classList.add('translate-y-0'); lastToastUser=u; if(toastTimeout) clearTimeout(toastTimeout); toastTimeout=setTimeout(()=>{ b.classList.add('-translate-y-24'); b.classList.remove('translate-y-0'); },3000); }
+        function clickToast(){ if(lastToastUser){ document.getElementById('toast-box').classList.add('-translate-y-24'); openChat(lastToastUser); } }
+        function tab(t){ ['view-chats','view-status','view-profile'].forEach(id=>document.getElementById(id).classList.add('hidden')); document.getElementById('t-chats').className='flex-1 py-4 text-xs font-bold tab-inactive'; document.getElementById('t-status').className='flex-1 py-4 text-xs font-bold tab-inactive'; document.getElementById('view-'+t).classList.remove('hidden'); if(t!=='profile'){ document.getElementById('t-'+t).className='flex-1 py-4 text-xs font-bold tab-active'; document.getElementById('fab-btn').classList.remove('hidden'); } else document.getElementById('fab-btn').classList.add('hidden'); if(t==='chats') loadChats(); if(t==='status') loadStatus(); document.getElementById('settings-menu').classList.add('hidden'); }
+        function toggleSettings(){ document.getElementById('settings-menu').classList.toggle('hidden'); }
+        function goToProfile(){ tab('profile'); }
+        
+        async function access(type){ 
+            const u=document.getElementById('u_auth').value.trim(); const p=document.getElementById('p_auth').value.trim();
+            if(!u||!p) return alert("Preencha");
+            const res = await fetch('/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+            if(res.ok){ if(type==='login'){ me=await res.json(); localStorage.setItem('red_v3',JSON.stringify(me)); location.reload(); } else alert("Sucesso! Faça login."); } else alert("Erro");
         }
-        function clickToast() { if(lastToastUser) { document.getElementById('toast-box').classList.add('-translate-y-24'); openChat(lastToastUser); } }
-
-        function tab(t) {
-            ['view-chats', 'view-status', 'view-profile'].forEach(id => document.getElementById(id).classList.add('hidden'));
-            document.getElementById('t-chats').className = 'flex-1 py-4 text-xs font-bold tab-inactive';
-            document.getElementById('t-status').className = 'flex-1 py-4 text-xs font-bold tab-inactive';
-            document.getElementById('view-'+t).classList.remove('hidden');
-            if(t !== 'profile') {
-                document.getElementById('t-'+t).className = 'flex-1 py-4 text-xs font-bold tab-active';
-                document.getElementById('fab-btn').classList.remove('hidden');
-            } else document.getElementById('fab-btn').classList.add('hidden');
-            if(t === 'chats') loadChats();
-            if(t === 'status') loadStatus();
-            document.getElementById('settings-menu').classList.add('hidden');
-        }
-        function toggleSettings() { document.getElementById('settings-menu').classList.toggle('hidden'); }
-        function goToProfile() { tab('profile'); }
-
-        async function access(type) {
-            const u = document.getElementById('u_auth').value.trim();
-            const p = document.getElementById('p_auth').value.trim();
-            if(!u || !p) return alert("Preencha tudo");
-            try {
-                const res = await fetch('/'+type, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:u, password:p}) });
-                if(res.ok) {
-                    if(type === 'login') {
-                        me = await res.json();
-                        localStorage.setItem('red_v3', JSON.stringify(me));
-                        location.reload();
-                    } else alert("Cadastrado! Faça login.");
-                } else alert("Erro.");
-            } catch(e) { alert("Sem conexão"); }
-        }
-
-        window.onload = () => {
-            const saved = localStorage.getItem('red_v3');
-            if(saved) {
-                try {
-                    me = JSON.parse(saved);
-                    document.getElementById('auth-screen').remove();
-                    document.getElementById('app').classList.remove('hidden');
-                    socket.emit('join', me.username);
-                    updateUI();
-                    tab('chats');
-                } catch(e) { localStorage.clear(); }
-            }
-        };
-
-        function updateUI() {
-            const pic = me.avatar && me.avatar.length > 10 ? me.avatar : `https://ui-avatars.com/api/?name=${me.username}`;
-            document.getElementById('header_pic').src = pic;
-            document.getElementById('profile_pic_large').src = pic;
-            document.getElementById('my_bio').value = me.bio || '';
-        }
-
-        // --- CHAT ---
-        async function loadChats() {
-            const data = await fetch(`/chats/${me.username}`).then(r => r.json());
-            const list = document.getElementById('view-chats');
-            if(data.length === 0) { list.innerHTML = `<div class="text-center text-zinc-500 mt-10 text-sm">Nenhuma conversa.</div>`; return; }
-            list.innerHTML = data.map(c => {
-                const isMe = c.last_sender === me.username;
-                const pic = c.avatar && c.avatar.length > 10 ? c.avatar : `https://ui-avatars.com/api/?name=${c.contact}`;
-                const tickHtml = isMe ? getTickIcon(c.last_status) : '';
-                return `
-                <div onclick="openChat('${c.contact}')" class="p-4 flex items-center gap-3 border-b border-zinc-800 cursor-pointer active:bg-zinc-800">
-                    <img src="${pic}" class="w-12 h-12 rounded-full object-cover bg-zinc-800">
-                    <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-baseline">
-                            <h4 class="font-bold text-sm text-zinc-100 truncate">${c.contact}</h4>
-                            <span class="text-[10px] text-zinc-500">${c.last_time || ''}</span>
-                        </div>
-                        <div class="flex items-center justify-between mt-1">
-                            <div class="flex items-center gap-1 text-xs text-zinc-400 truncate pr-2">
-                                ${tickHtml}
-                                <span class="truncate">${c.last_type === 'audio' ? '🎵 Áudio' : (c.last_msg || '')}</span>
-                            </div>
-                            ${c.unread > 0 ? `<div class="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0">${c.unread}</div>` : ''}
-                        </div>
-                    </div>
-                </div>`;
+        window.onload = () => { const saved=localStorage.getItem('red_v3'); if(saved){ try{ me=JSON.parse(saved); document.getElementById('auth-screen').remove(); document.getElementById('app').classList.remove('hidden'); socket.emit('join',me.username); updateUI(); tab('chats'); }catch(e){localStorage.clear();} } };
+        function updateUI(){ const pic=me.avatar&&me.avatar.length>10?me.avatar:`https://ui-avatars.com/api/?name=${me.username}`; document.getElementById('header_pic').src=pic; document.getElementById('profile_pic_large').src=pic; document.getElementById('my_bio').value=me.bio||''; }
+        
+        // --- CORE CHAT ---
+        async function loadChats(){
+            const data=await fetch(`/chats/${me.username}`).then(r=>r.json());
+            const list=document.getElementById('view-chats');
+            if(data.length===0){ list.innerHTML=`<div class="text-center text-zinc-500 mt-10 text-sm">Sem conversas.</div>`; return; }
+            list.innerHTML=data.map(c=>{
+                const isMe=c.last_sender===me.username;
+                const pic=c.avatar&&c.avatar.length>10?c.avatar:`https://ui-avatars.com/api/?name=${c.contact}`;
+                return `<div onclick="openChat('${c.contact}')" class="p-4 flex items-center gap-3 border-b border-zinc-800 cursor-pointer active:bg-zinc-800"><img src="${pic}" class="w-12 h-12 rounded-full object-cover bg-zinc-800"><div class="flex-1 min-w-0"><div class="flex justify-between items-baseline"><h4 class="font-bold text-sm text-zinc-100 truncate">${c.contact}</h4><span class="text-[10px] text-zinc-500">${c.last_time||''}</span></div><div class="flex items-center justify-between mt-1"><div class="flex items-center gap-1 text-xs text-zinc-400 truncate pr-2">${isMe?getTickIcon(c.last_status):''} <span class="truncate">${c.last_type==='audio'?'🎵 Áudio':(c.last_msg||'')}</span></div>${c.unread>0?`<div class="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0">${c.unread}</div>`:''}</div></div></div>`;
             }).join('');
         }
-
-        async function openChat(u) {
-            active = u;
-            document.getElementById('chat-win').classList.remove('hidden');
-            document.getElementById('chat_h_name').innerText = u;
-            const info = await fetch('/user/'+u).then(r => r.json());
-            const pic = info.avatar && info.avatar.length > 10 ? info.avatar : `https://ui-avatars.com/api/?name=${u}`;
-            document.getElementById('chat_h_img').src = pic;
-            loadMsgs();
-            socket.emit('mark_read', {s: active, r: me.username});
-        }
-        function closeChat() { document.getElementById('chat-win').classList.add('hidden'); active = null; if(currentAudio) currentAudio.pause(); loadChats(); }
-
-        async function loadMsgs() {
+        async function openChat(u){ active=u; document.getElementById('chat-win').classList.remove('hidden'); document.getElementById('chat_h_name').innerText=u; const info=await fetch('/user/'+u).then(r=>r.json()); document.getElementById('chat_h_img').src=info.avatar&&info.avatar.length>10?info.avatar:`https://ui-avatars.com/api/?name=${u}`; loadMsgs(); socket.emit('mark_read',{s:active,r:me.username}); }
+        function closeChat(){ document.getElementById('chat-win').classList.add('hidden'); active=null; if(currentAudio) currentAudio.pause(); loadChats(); }
+        
+        async function loadMsgs(){
             if(!active) return;
-            const msgs = await fetch(`/messages/${me.username}/${active}`).then(r => r.json());
-            const flow = document.getElementById('msg_flow');
-            
-            // Renderiza Mensagens com o novo design de áudio
-            flow.innerHTML = msgs.map((m, idx) => {
-                const isMe = m.s === me.username;
-                const uniqueId = m.id || idx; // Fallback se id for null
-
+            const msgs=await fetch(`/messages/${me.username}/${active}`).then(r=>r.json());
+            document.getElementById('msg_flow').innerHTML = msgs.map((m,i)=>{
+                const isMe=m.s===me.username;
+                const uid=m.id||i;
                 let content;
-                if(m.type === 'audio') {
-                    // --- HTML CUSTOM PLAYER ---
-                    content = `
-                        <div class="flex items-center gap-3 w-56 audio-player text-white/90">
-                            <div class="relative w-10 h-10 flex items-center justify-center shrink-0">
-                                <button onclick="toggleAudio(${uniqueId})" class="w-10 h-10 bg-black/20 rounded-full flex items-center justify-center play-btn border border-white/10">
-                                    <svg id="btn_icon_${uniqueId}" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div class="flex-1 flex flex-col justify-center gap-1">
-                                <input type="range" id="range_${uniqueId}" value="0" step="0.1" oninput="seekAudio(${uniqueId}, this.value)">
-                                <div class="flex justify-between text-[10px] opacity-80 font-mono">
-                                    <span id="time_${uniqueId}">0:00</span>
-                                </div>
-                            </div>
-                            
-                            <div class="opacity-50 shrink-0">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/></svg>
-                            </div>
-
-                            <audio id="audio_${uniqueId}" src="${m.c}" class="hidden" ontimeupdate="updateProgress(${uniqueId})" onended="audioEnded(${uniqueId})" onloadedmetadata="setDuration(${uniqueId})"></audio>
+                if(m.type==='audio'){
+                    content = `<div class="flex items-center gap-3 w-56 audio-player text-white/90">
+                        <div class="relative w-10 h-10 flex items-center justify-center shrink-0">
+                            <button onclick="toggleAudio(${uid})" class="w-10 h-10 bg-black/20 rounded-full flex items-center justify-center play-btn border border-white/10"><svg id="btn_icon_${uid}" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
                         </div>
-                    `;
-                } else {
-                    content = `<p class="text-sm leading-relaxed">${m.c}</p>`;
-                }
-                
-                const tick = isMe ? getTickIcon(m.status) : '';
-                
-                return `
-                    <div class="${isMe ? 'msg-me' : 'msg-them'}">
-                        ${content}
-                        <div class="msg-meta">
-                            <span>${m.f_time}</span>
-                            ${isMe ? `<span>${tick}</span>` : ''}
-                        </div>
+                        <div class="flex-1 flex flex-col justify-center gap-1"><input type="range" id="range_${uid}" value="0" step="0.1" oninput="seekAudio(${uid},this.value)"><div class="flex justify-between text-[10px] opacity-80 font-mono"><span id="time_${uid}">0:00</span></div></div>
+                        <div class="opacity-50 shrink-0"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/></svg></div>
+                        <audio id="audio_${uid}" src="${m.c}" class="hidden" ontimeupdate="updateProgress(${uid})" onended="audioEnded(${uid})" onloadedmetadata="setDuration(${uid})"></audio>
                     </div>`;
+                } else content = `<p class="text-sm leading-relaxed">${m.c}</p>`;
+                return `<div class="${isMe?'msg-me':'msg-them'}">${content}<div class="msg-meta"><span>${m.f_time}</span>${isMe?`<span>${getTickIcon(m.status)}</span>`:''}</div></div>`;
             }).join('');
-            
-            flow.scrollTop = flow.scrollHeight;
+            const f=document.getElementById('msg_flow'); f.scrollTop=f.scrollHeight;
         }
 
-        function sendMsg(type='text', content=null) {
-            const txt = document.getElementById('m_in').value;
-            const c = content || txt;
-            if(!c || !active) return;
-            socket.emit('send_msg', { s: me.username, r: active, c: c, type: type });
-            if(type === 'text') document.getElementById('m_in').value = '';
-            loadMsgs(); 
-        }
+        function sendMsg(type='text',content=null){ const txt=document.getElementById('m_in').value; const c=content||txt; if(!c||!active) return; socket.emit('send_msg',{s:me.username,r:active,c:c,type:type}); if(type==='text') document.getElementById('m_in').value=''; loadMsgs(); }
+        async function toggleRecording(){ const btn=document.getElementById('mic_btn'); if(!isRecording){ try{ const s=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(s); audioChunks=[]; mediaRecorder.ondataavailable=e=>audioChunks.push(e.data); mediaRecorder.onstop=()=>{ const r=new FileReader(); r.readAsDataURL(new Blob(audioChunks,{type:'audio/webm'})); r.onloadend=()=>sendMsg('audio',r.result); }; mediaRecorder.start(); isRecording=true; btn.innerHTML='🛑'; document.getElementById('m_in').placeholder="Gravando..."; }catch(e){alert("Mic bloqueado");} } else { mediaRecorder.stop(); isRecording=false; btn.innerHTML='🎤'; document.getElementById('m_in').placeholder="Mensagem..."; } }
 
-        async function toggleRecording() {
-            const btn = document.getElementById('mic_btn');
-            if(!isRecording) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    audioChunks = [];
-                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    mediaRecorder.onstop = () => {
-                        const reader = new FileReader();
-                        reader.readAsDataURL(new Blob(audioChunks, {type:'audio/webm'}));
-                        reader.onloadend = () => sendMsg('audio', reader.result);
-                    };
-                    mediaRecorder.start();
-                    isRecording = true;
-                    btn.innerHTML = '🛑';
-                    document.getElementById('m_in').placeholder = "Gravando...";
-                } catch(e) { alert("Microfone bloqueado"); }
-            } else {
-                mediaRecorder.stop();
-                isRecording = false;
-                btn.innerHTML = '🎤';
-                document.getElementById('m_in').placeholder = "Mensagem...";
-            }
-        }
-
-        // --- OUTRAS ---
-        function previewAvatar(e) {
-            const f = e.target.files[0];
-            if(f) { const r = new FileReader(); r.onload = () => document.getElementById('profile_pic_large').src = r.result; r.readAsDataURL(f); }
-        }
-        async function saveProfile() {
-            const avatarSrc = document.getElementById('profile_pic_large').src;
-            const bio = document.getElementById('my_bio').value;
-            const sendAvatar = avatarSrc.startsWith('data:') ? avatarSrc : (me.avatar || '');
-            await fetch('/update-profile', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username: me.username, bio, avatar: sendAvatar}) });
-            if(sendAvatar) me.avatar = sendAvatar;
-            me.bio = bio;
-            localStorage.setItem('red_v3', JSON.stringify(me));
-            updateUI(); alert("Salvo!"); tab('chats');
-        }
-        async function viewContactProfile() {
-            if(!active) return;
-            const info = await fetch('/user/'+active).then(r => r.json());
-            document.getElementById('op_name').innerText = info.username;
-            document.getElementById('op_bio').innerText = info.bio || "Sem bio.";
-            document.getElementById('op_avatar').src = info.avatar && info.avatar.length > 10 ? info.avatar : `https://ui-avatars.com/api/?name=${info.username}`;
-            document.getElementById('other-profile-modal').classList.remove('hidden');
-            document.getElementById('other-profile-modal').classList.add('flex');
-        }
-        function closeOtherProfile() { document.getElementById('other-profile-modal').classList.add('hidden'); document.getElementById('other-profile-modal').classList.remove('flex'); }
-        async function postStatus(e) {
-            const f = e.target.files[0];
-            if(!f) return;
-            const r = new FileReader();
-            r.onload = async () => { await fetch('/post-status', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({username:me.username, content:r.result}) }); loadStatus(); };
-            r.readAsDataURL(f);
-        }
-        async function loadStatus() {
-            const data = await fetch('/get-status').then(r => r.json());
-            document.getElementById('st_grid').innerHTML = data.map(s => `
-                <div class="aspect-[9/16] bg-zinc-800 rounded-xl overflow-hidden relative shadow-lg">
-                    <img src="${s.content}" class="w-full h-full object-cover">
-                    <div class="absolute bottom-2 left-2 flex gap-2 items-center">
-                        <img src="${s.avatar || 'https://ui-avatars.com/api/?name='+s.username}" class="w-6 h-6 rounded-full border border-blue-500">
-                        <span class="text-[10px] font-bold text-white shadow-black drop-shadow-md">${s.username}</span>
-                    </div>
-                </div>`).join('');
-        }
-        function openNewChatModal() { document.getElementById('new-chat-modal').classList.remove('hidden'); }
-        function closeNewChatModal() { document.getElementById('new-chat-modal').classList.add('hidden'); }
-        async function startNewChat() {
-            const u = document.getElementById('nc_input').value.trim();
-            if(u === me.username) return alert("Erro");
-            const res = await fetch('/user/'+u).then(r => r.json());
-            if(res.username) { closeNewChatModal(); openChat(u); } else alert("Não encontrado");
-        }
-        function logout() { localStorage.removeItem('red_v3'); location.reload(); }
+        function previewAvatar(e){ const f=e.target.files[0]; if(f){const r=new FileReader();r.onload=()=>document.getElementById('profile_pic_large').src=r.result;r.readAsDataURL(f);} }
+        async function saveProfile(){ const a=document.getElementById('profile_pic_large').src; const b=document.getElementById('my_bio').value; const s=a.startsWith('data:')?a:(me.avatar||''); await fetch('/update-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:me.username,bio:b,avatar:s})}); if(s)me.avatar=s; me.bio=b; localStorage.setItem('red_v3',JSON.stringify(me)); updateUI(); alert("Salvo!"); tab('chats'); }
+        async function viewContactProfile(){ if(!active)return; const i=await fetch('/user/'+active).then(r=>r.json()); document.getElementById('op_name').innerText=i.username; document.getElementById('op_bio').innerText=i.bio||"Sem bio"; document.getElementById('op_avatar').src=i.avatar&&i.avatar.length>10?i.avatar:`https://ui-avatars.com/api/?name=${i.username}`; const m=document.getElementById('other-profile-modal'); m.classList.remove('hidden'); m.classList.add('flex'); }
+        function closeOtherProfile(){ const m=document.getElementById('other-profile-modal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+        async function postStatus(e){ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=async()=>{ await fetch('/post-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:me.username,content:r.result})}); loadStatus(); }; r.readAsDataURL(f); }
+        async function loadStatus(){ const d=await fetch('/get-status').then(r=>r.json()); document.getElementById('st_grid').innerHTML=d.map(s=>`<div class="aspect-[9/16] bg-zinc-800 rounded-xl overflow-hidden relative shadow-lg"><img src="${s.content}" class="w-full h-full object-cover"><div class="absolute bottom-2 left-2 flex gap-2 items-center"><img src="${s.avatar||'https://ui-avatars.com/api/?name='+s.username}" class="w-6 h-6 rounded-full border border-blue-500"><span class="text-[10px] font-bold text-white shadow-black drop-shadow-md">${s.username}</span></div></div>`).join(''); }
+        function openNewChatModal(){document.getElementById('new-chat-modal').classList.remove('hidden');} function closeNewChatModal(){document.getElementById('new-chat-modal').classList.add('hidden');}
+        async function startNewChat(){ const u=document.getElementById('nc_input').value.trim(); if(u===me.username)return alert("Erro"); const r=await fetch('/user/'+u).then(d=>d.json()); if(r.username){closeNewChatModal();openChat(u);}else alert("Não achou"); }
+        function logout(){localStorage.removeItem('red_v3');location.reload();}
     </script>
 </body>
 </html>
