@@ -2,319 +2,640 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#18181b">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#000000">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="manifest" href="/manifest.json">
-    
-    <title>Chat V3 App</title>
+    <title>Messenger Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --bg-main: #09090b; --bg-card: #18181b; --accent: #3b82f6; }
-        body { background: var(--bg-main); color: #f4f4f5; font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; }
+        /* iOS Dark Theme Variables */
+        :root {
+            --bg-ios-primary: #000000;
+            --bg-ios-secondary: #1C1C1E;
+            --bg-ios-tertiary: #2C2C2E;
+            --ios-blue: #0A84FF;
+            --ios-green: #30D158;
+            --ios-red: #FF453A;
+            --ios-separator: #38383A;
+            --msg-me: #0A84FF;
+            --msg-them: #2C2C2E;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body { background: var(--bg-ios-primary); color: white; overflow: hidden; margin: 0; height: 100vh; touch-action: manipulation; }
+        
+        /* Utility */
         .hidden { display: none !important; }
+        .ios-blur { background: rgba(28, 28, 30, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .tap-highlight-transparent { -webkit-tap-highlight-color: transparent; }
         
-        /* CORREÇÃO DA LARGURA DA BOLHA */
-        .msg-me { 
-            background: #2563eb; color: white; border-radius: 16px 16px 2px 16px; 
-            align-self: flex-end; 
-            width: fit-content;    /* Ajusta ao conteúdo */
-            max-width: 85%; 
-            padding: 8px 12px; margin-bottom: 6px; position: relative; 
-            word-wrap: break-word; /* Quebra texto longo */
-        }
-        .msg-them { 
-            background: #27272a; color: white; border-radius: 16px 16px 16px 2px; 
-            align-self: flex-start; 
-            width: fit-content;    /* Ajusta ao conteúdo */
-            max-width: 85%; 
-            padding: 8px 12px; margin-bottom: 6px; 
-            word-wrap: break-word;
-        }
-        
-        .msg-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 2px; font-size: 10px; color: rgba(255,255,255,0.7); }
-
-        /* Audio Player Styles */
-        .audio-player input[type=range] { -webkit-appearance: none; background: transparent; width: 100%; }
-        .audio-player input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%; background: currentColor; margin-top: -5px; cursor: pointer; }
-        .audio-player input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 3px; background: currentColor; opacity: 0.3; border-radius: 2px; }
-        .play-btn { transition: transform 0.1s; }
-        .play-btn:active { transform: scale(0.9); }
-
-        .modal-up { animation: slideUp 0.3s forwards; }
+        /* Animations */
+        .slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .slide-down { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .fade-in { animation: fadeIn 0.2s ease-out; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        #toast-box { transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        * { -webkit-tap-highlight-color: transparent; outline: none !important; }
+        @keyframes slideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Bubble Chat Logic */
+        .msg-bubble { padding: 8px 12px; border-radius: 18px; max-width: 75%; position: relative; word-wrap: break-word; font-size: 15px; line-height: 1.4; margin-bottom: 2px; }
+        .msg-me { background: var(--msg-me); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .msg-them { background: var(--msg-them); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .msg-group-sender { font-size: 11px; color: var(--ios-blue); margin-bottom: 2px; font-weight: 600; }
+        
+        /* Inputs & Interactive */
+        input:focus, textarea:focus { outline: none; }
+        .tab-active { color: var(--ios-blue); }
+        .tab-inactive { color: #8E8E93; }
+        
+        /* Call Interface */
+        .pulse-ring { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.7); animation: pulse-green 2s infinite; }
+        @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(48, 209, 88, 0); } 100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); } }
     </style>
 </head>
-<body class="h-screen flex flex-col">
+<body class="flex flex-col">
 
-    <div id="toast-box" class="fixed top-4 left-0 right-0 z-[5000] flex justify-center pointer-events-none transform -translate-y-24">
-        <div class="bg-[#27272a] border border-zinc-700 shadow-2xl rounded-full px-6 py-3 flex items-center gap-3 pointer-events-auto cursor-pointer" onclick="clickToast()">
-            <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
-            <span id="toast-msg" class="text-sm font-bold text-white">Nova mensagem</span>
+    <div id="auth-screen" class="fixed inset-0 z-[5000] bg-black flex flex-col items-center justify-center p-8">
+        <div class="w-full max-w-sm text-center">
+            <h1 class="text-3xl font-bold mb-2 text-white">Messenger Pro</h1>
+            <p class="text-gray-500 mb-8">Conecte-se com velocidade.</p>
+            <input id="u_auth" placeholder="Usuário" class="w-full bg-[#1C1C1E] px-4 py-4 rounded-xl border-none text-white mb-3 text-lg">
+            <input id="p_auth" type="password" placeholder="Senha" class="w-full bg-[#1C1C1E] px-4 py-4 rounded-xl border-none text-white mb-8 text-lg">
+            <button onclick="access('login')" class="w-full bg-[#0A84FF] py-4 rounded-xl font-bold text-lg active:opacity-80 transition">Entrar</button>
+            <button onclick="access('register')" class="w-full py-4 text-[#0A84FF] font-medium mt-2">Criar conta</button>
         </div>
     </div>
 
-    <div id="auth-screen" class="fixed inset-0 z-[3000] bg-black flex items-center justify-center p-6">
-        <div class="w-full max-w-sm bg-[#18181b] p-8 rounded-3xl border border-zinc-800">
-            <h1 class="text-2xl font-bold text-center mb-8 text-blue-500">Login</h1>
-            <input id="u_auth" placeholder="Usuário" class="w-full bg-[#09090b] px-4 py-3 mb-3 rounded-xl border border-zinc-800 text-white">
-            <input id="p_auth" type="password" placeholder="Senha" class="w-full bg-[#09090b] px-4 py-3 mb-8 rounded-xl border border-zinc-800 text-white">
-            <button onclick="access('login')" class="w-full bg-blue-600 py-3 rounded-xl font-bold mb-4">ENTRAR</button>
-            <button onclick="access('register')" class="w-full text-xs text-zinc-500 font-bold uppercase">Criar Conta</button>
+    <div id="call-incoming-overlay" class="fixed inset-0 z-[4000] bg-black/90 hidden flex-col items-center justify-between py-12 slide-up backdrop-blur-md">
+        <div class="flex flex-col items-center mt-10">
+            <img id="inc_call_avatar" class="w-24 h-24 rounded-full bg-gray-700 mb-4 object-cover">
+            <h2 id="inc_call_name" class="text-2xl font-bold">Usuário</h2>
+            <p class="text-gray-400">Chamada de voz...</p>
         </div>
-    </div>
-
-    <div id="app" class="hidden flex-1 flex flex-col w-full h-full max-w-md mx-auto relative bg-[#09090b] border-x border-zinc-800">
-        
-        <header class="h-16 px-5 flex justify-between items-center bg-[#18181b] border-b border-zinc-800 relative z-[100]">
-            <h1 class="text-lg font-bold">Chat V3</h1>
-            <button onclick="toggleSettings()" class="relative">
-                <img id="header_pic" class="w-9 h-9 rounded-full object-cover border border-zinc-600 bg-zinc-800">
+        <div class="flex w-full justify-around px-10">
+            <button onclick="rejectCall()" class="flex flex-col items-center gap-2">
+                <div class="w-16 h-16 rounded-full bg-[#FF453A] flex items-center justify-center"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></div>
+                <span class="text-xs">Recusar</span>
             </button>
-            <div id="settings-menu" class="hidden absolute right-4 top-14 w-56 bg-[#18181b] border border-zinc-700 rounded-xl shadow-2xl overflow-hidden z-[200]">
-                <button id="install-btn" onclick="installApp()" class="hidden w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm border-b border-zinc-800 text-green-500 font-bold">📲 Instalar App</button>
-                
-                <button onclick="goToProfile()" class="w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm border-b border-zinc-800">👤 Meu Perfil</button>
-                <button onclick="logout()" class="w-full text-left px-4 py-3 hover:bg-zinc-800 text-sm text-red-500">🚪 Sair</button>
-            </div>
+            <button onclick="acceptCall()" class="flex flex-col items-center gap-2">
+                <div class="w-16 h-16 rounded-full bg-[#30D158] flex items-center justify-center pulse-ring"><svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg></div>
+                <span class="text-xs">Aceitar</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="call-active-overlay" class="fixed inset-0 z-[4000] bg-[#1C1C1E] hidden flex-col items-center py-12">
+        <div class="flex-1 flex flex-col items-center justify-center">
+            <img id="act_call_avatar" class="w-32 h-32 rounded-full border-4 border-[#2C2C2E] mb-6 object-cover">
+            <h2 id="act_call_name" class="text-3xl font-bold mb-2">Em chamada</h2>
+            <p id="call_timer" class="text-[#30D158] font-mono text-xl">00:00</p>
+            <audio id="remote_audio" autoplay></audio>
+        </div>
+        <div class="pb-10">
+            <button onclick="endCall()" class="w-16 h-16 rounded-full bg-[#FF453A] flex items-center justify-center hover:opacity-80">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 8l2-2m0 0l2-2m-2 2l-2 2m-2 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <div id="app" class="hidden flex-1 flex flex-col w-full h-full max-w-md mx-auto relative bg-black border-x border-[#333]">
+        
+        <header class="h-[60px] px-4 flex justify-between items-center bg-[#1C1C1E]/90 backdrop-blur border-b border-[#2C2C2E] sticky top-0 z-50">
+            <button onclick="openNewGroup()" class="text-[#0A84FF] text-sm font-medium">Novo Grupo</button>
+            <h1 class="font-bold text-lg">Chats</h1>
+            <button onclick="openNewChat()" class="w-8 h-8 rounded-full bg-[#2C2C2E] flex items-center justify-center text-[#0A84FF]">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            </button>
         </header>
 
-        <nav class="flex bg-[#18181b] border-b border-zinc-800 shrink-0 z-50">
-            <button onclick="tab('chats')" id="t-chats" class="flex-1 py-4 text-xs font-bold tab-active">CONVERSAS</button>
-            <button onclick="tab('status')" id="t-status" class="flex-1 py-4 text-xs font-bold tab-inactive">STATUS</button>
-        </nav>
+        <div class="w-full flex p-1 bg-[#1C1C1E] border-b border-[#2C2C2E]">
+            <button onclick="tab('chats')" id="t-chats" class="flex-1 py-2 text-sm font-semibold rounded-lg bg-[#2C2C2E] transition-all">Conversas</button>
+            <button onclick="tab('feed')" id="t-feed" class="flex-1 py-2 text-sm font-semibold text-gray-500 transition-all">Feed</button>
+            <button onclick="tab('profile')" id="t-profile" class="flex-1 py-2 text-sm font-semibold text-gray-500 transition-all">Perfil</button>
+        </div>
 
-        <main class="flex-1 overflow-y-auto relative">
+        <main class="flex-1 overflow-y-auto overflow-x-hidden relative scroll-smooth no-scrollbar">
+            
             <div id="view-chats" class="pb-24"></div>
 
-            <div id="view-status" class="hidden p-4 pb-24">
-                <div onclick="document.getElementById('st_file').click()" class="mb-6 p-4 rounded-xl bg-[#18181b] border border-dashed border-zinc-700 flex items-center gap-3 cursor-pointer">
-                    <div class="w-10 h-10 bg-zinc-800 rounded-full flex items-center justify-center text-blue-500 font-bold">+</div>
-                    <div><h4 class="text-sm font-bold">Postar Status</h4></div>
-                    <input type="file" id="st_file" class="hidden" accept="image/*" onchange="postStatus(event)">
+            <div id="view-feed" class="hidden pb-24">
+                <div class="p-4 border-b border-[#2C2C2E] flex gap-3 items-center" onclick="openPostModal()">
+                    <img id="feed_me_av" class="w-10 h-10 rounded-full bg-gray-800 object-cover">
+                    <div class="flex-1 h-10 bg-[#1C1C1E] rounded-full flex items-center px-4 text-gray-500 text-sm">O que está acontecendo?</div>
                 </div>
-                <div id="st_grid" class="grid grid-cols-2 gap-3"></div>
+                <div id="feed_list" class="flex flex-col gap-2 bg-black pt-2"></div>
             </div>
 
             <div id="view-profile" class="hidden p-6 flex flex-col items-center">
-                <div class="relative mb-6 group cursor-pointer" onclick="document.getElementById('p_file').click()">
-                    <img id="profile_pic_large" class="w-32 h-32 rounded-full border-4 border-[#18181b] object-cover">
-                    <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                        <span class="text-xs font-bold text-white">TROCAR</span>
+                <div class="relative mb-6 cursor-pointer" onclick="document.getElementById('p_file').click()">
+                    <img id="my_pic_large" class="w-28 h-28 rounded-full border-4 border-[#1C1C1E] object-cover">
+                    <div class="absolute bottom-0 right-0 bg-[#0A84FF] p-2 rounded-full border-2 border-black">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path></svg>
                     </div>
                 </div>
-                <input type="file" id="p_file" class="hidden" accept="image/*" onchange="previewAvatar(event)">
-                <input id="my_bio" placeholder="Sua bio" class="w-full bg-[#18181b] p-4 rounded-xl border border-zinc-800 text-white mb-4">
-                <button onclick="saveProfile()" class="w-full bg-blue-600 py-4 rounded-xl font-bold">SALVAR PERFIL</button>
-                <button onclick="tab('chats')" class="w-full mt-2 py-4 text-zinc-500 text-sm">Voltar</button>
-            </div>
-        </main>
-
-        <button onclick="openNewChatModal()" id="fab-btn" class="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center shadow-xl z-50">
-            <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        </button>
-    </div>
-
-    <div id="new-chat-modal" class="fixed inset-0 z-[2000] hidden flex flex-col bg-[#09090b] modal-up">
-        <header class="h-16 flex items-center gap-4 px-4 border-b border-zinc-800 bg-[#18181b]">
-            <button onclick="closeNewChatModal()" class="text-zinc-400 p-2">✕</button>
-            <h2 class="text-lg font-bold">Nova Conversa</h2>
-        </header>
-        <div class="p-6">
-            <input id="nc_input" class="w-full bg-[#18181b] p-4 rounded-xl border border-zinc-800 text-white" placeholder="Nome exato do usuário...">
-            <button onclick="startNewChat()" class="w-full mt-4 bg-blue-600 py-4 rounded-xl font-bold">INICIAR</button>
-        </div>
-    </div>
-
-    <div id="other-profile-modal" class="fixed inset-0 z-[2500] hidden flex flex-col bg-black/90 items-center justify-center p-6 backdrop-blur-sm" onclick="closeOtherProfile()">
-        <div class="bg-[#18181b] w-full max-w-xs rounded-2xl p-6 flex flex-col items-center border border-zinc-800 shadow-2xl relative" onclick="event.stopPropagation()">
-            <button onclick="closeOtherProfile()" class="absolute top-3 right-3 text-zinc-500">✕</button>
-            <img id="op_avatar" class="w-32 h-32 rounded-full object-cover border-4 border-[#27272a] mb-4 bg-zinc-800">
-            <h2 id="op_name" class="text-xl font-bold text-white mb-1">Nome</h2>
-            <p id="op_bio" class="text-zinc-400 text-center text-sm mb-6">Sem bio.</p>
-        </div>
-    </div>
-
-    <div id="chat-win" class="fixed inset-0 bg-[#09090b] z-[1000] hidden flex flex-col">
-        <header class="h-16 bg-[#18181b] flex items-center px-2 border-b border-zinc-800 shrink-0">
-            <button onclick="closeChat()" class="p-3 text-zinc-400 mr-2"><svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
-            <div class="flex items-center gap-3 cursor-pointer p-1" onclick="viewContactProfile()">
-                <img id="chat_h_img" class="w-10 h-10 rounded-full object-cover bg-zinc-800 border border-zinc-600">
-                <div>
-                    <h4 id="chat_h_name" class="font-bold text-sm">--</h4>
-                    <span class="text-[10px] text-green-500 font-bold block">Online</span>
+                <input type="file" id="p_file" class="hidden" accept="image/*" onchange="updateAvatar(event)">
+                <h2 id="my_name_display" class="text-2xl font-bold mb-1"></h2>
+                <input id="my_bio_input" class="bg-transparent text-center text-gray-400 mb-6 w-full border-b border-[#2C2C2E] focus:border-[#0A84FF] pb-2" placeholder="Adicione uma bio">
+                
+                <div class="w-full bg-[#1C1C1E] rounded-xl overflow-hidden mb-6">
+                    <button onclick="saveProfile()" class="w-full py-4 text-[#0A84FF] font-medium border-b border-[#2C2C2E]">Salvar Alterações</button>
+                    <button onclick="logout()" class="w-full py-4 text-[#FF453A] font-medium">Sair</button>
                 </div>
             </div>
+        </main>
+    </div>
+
+    <div id="chat-win" class="fixed inset-0 z-[1000] bg-black hidden flex flex-col slide-up">
+        <header class="h-[90px] pt-8 pb-2 px-2 bg-[#1C1C1E]/95 backdrop-blur flex items-center gap-2 border-b border-[#2C2C2E] shrink-0">
+            <button onclick="closeChat()" class="text-[#0A84FF] px-2 flex items-center gap-1">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                <span class="text-lg">Voltar</span>
+            </button>
+            <div class="flex-1 flex flex-col items-center cursor-pointer" onclick="openChatSettings()">
+                <div class="flex items-center gap-2">
+                    <span id="chat_h_name" class="font-bold text-md">Nome</span>
+                </div>
+                <span class="text-[10px] text-gray-400" id="chat_h_status">Toque para info</span>
+            </div>
+            <button onclick="startVoiceCall()" class="p-2 rounded-full bg-[#2C2C2E] text-[#0A84FF]">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+            </button>
+            <img id="chat_h_img" class="w-9 h-9 rounded-full bg-gray-700 ml-2 object-cover">
         </header>
-        <div id="msg_flow" class="flex-1 overflow-y-auto p-4 flex flex-col pb-safe"></div>
-        <div class="p-3 bg-[#18181b] flex items-center gap-2 border-t border-zinc-800 pb-6">
-            <button id="mic_btn" onclick="toggleRecording()" class="w-12 h-12 rounded-full bg-zinc-800 text-zinc-400 flex items-center justify-center shrink-0">🎤</button>
-            <input id="m_in" class="flex-1 bg-[#09090b] p-3 rounded-xl border border-zinc-800 text-white h-12" placeholder="Mensagem..." onkeydown="if(event.key==='Enter') sendMsg()">
-            <button onclick="sendMsg()" class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white shrink-0">➤</button>
+
+        <div id="msg_flow" class="flex-1 overflow-y-auto p-4 flex flex-col gap-1 bg-black"></div>
+
+        <div class="bg-[#1C1C1E] p-2 pb-6 border-t border-[#2C2C2E] flex items-end gap-2">
+            <button class="p-2 text-[#0A84FF] shrink-0">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+            </button>
+            <div class="flex-1 bg-[#2C2C2E] rounded-2xl flex items-center px-3 min-h-[36px]">
+                <textarea id="m_in" rows="1" class="w-full bg-transparent text-white text-base resize-none py-2 max-h-24" placeholder="Mensagem"></textarea>
+            </div>
+            <button id="send_btn" onclick="sendMsg()" class="p-2 bg-[#0A84FF] rounded-full text-white shrink-0">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+            </button>
         </div>
     </div>
 
+    <div id="modal-container" class="fixed inset-0 z-[2000] hidden bg-black/80 backdrop-blur-sm flex items-end sm:items-center justify-center">
+        </div>
+
     <script>
-        // --- PWA INSTALL LOGIC ---
-        let deferredPrompt;
+        const socket = io({ reconnection: true });
+        let me = null, active = null; // active pode ser username (DM) ou ID (Grupo)
+        let activeIsGroup = false;
         
-        // Registra Service Worker
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').then(() => console.log('SW Registered'));
+        // WebRTC Vars
+        let localStream, remoteStream, peerConnection;
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        let callIncomingData = null, callTimerInt = null;
+
+        // --- AUTH & INIT ---
+        window.onload = () => {
+            const saved = localStorage.getItem('red_v4');
+            if(saved) {
+                try {
+                    me = JSON.parse(saved);
+                    document.getElementById('auth-screen').classList.add('hidden');
+                    document.getElementById('app').classList.remove('hidden');
+                    socket.emit('join', me.username);
+                    updateProfileUI();
+                    tab('chats');
+                } catch(e) { localStorage.clear(); }
+            }
+        };
+
+        async function access(type) {
+            const u = document.getElementById('u_auth').value.trim();
+            const p = document.getElementById('p_auth').value.trim();
+            if(!u || !p) return alert("Preencha tudo");
+            const res = await fetch('/'+type, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({username: u, password: p})
+            });
+            if(res.ok) {
+                if(type === 'login') {
+                    me = await res.json();
+                    localStorage.setItem('red_v4', JSON.stringify(me));
+                    location.reload();
+                } else alert("Conta criada! Faça login.");
+            } else alert("Erro ao acessar.");
         }
 
-        // Captura o evento de instalação
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            document.getElementById('install-btn').classList.remove('hidden');
+        // --- CORE NAVIGATION ---
+        function tab(t) {
+            ['chats', 'feed', 'profile'].forEach(x => {
+                document.getElementById('view-'+x).classList.add('hidden');
+                const btn = document.getElementById('t-'+x);
+                if(btn) {
+                    btn.classList.remove('tab-active', 'bg-[#2C2C2E]', 'text-white');
+                    btn.classList.add('tab-inactive');
+                }
+            });
+            document.getElementById('view-'+t).classList.remove('hidden');
+            const activeBtn = document.getElementById('t-'+t);
+            activeBtn.classList.remove('tab-inactive');
+            activeBtn.classList.add('tab-active', 'bg-[#2C2C2E]', 'text-white'); // Highlight style
+            
+            if(t==='chats') loadChats();
+            if(t==='feed') loadFeed();
+        }
+
+        function updateProfileUI() {
+            const pic = me.avatar || `https://ui-avatars.com/api/?name=${me.username}&background=random`;
+            document.getElementById('my_pic_large').src = pic;
+            document.getElementById('feed_me_av').src = pic;
+            document.getElementById('my_name_display').innerText = me.username;
+            document.getElementById('my_bio_input').value = me.bio || '';
+        }
+
+        async function updateAvatar(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                document.getElementById('my_pic_large').src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function saveProfile() {
+            const avatar = document.getElementById('my_pic_large').src;
+            const bio = document.getElementById('my_bio_input').value;
+            await fetch('/update-profile', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({username: me.username, bio, avatar})
+            });
+            me.avatar = avatar; me.bio = bio;
+            localStorage.setItem('red_v4', JSON.stringify(me));
+            alert("Perfil salvo");
+        }
+
+        function logout() { localStorage.removeItem('red_v4'); location.reload(); }
+
+        // --- CHATS & MESSAGING ---
+        async function loadChats() {
+            const data = await fetch(`/chats/${me.username}`).then(r => r.json());
+            const list = document.getElementById('view-chats');
+            list.innerHTML = data.map(c => {
+                const isGroup = c.is_group === 1;
+                const pic = c.avatar || (isGroup ? 'https://cdn-icons-png.flaticon.com/512/694/694642.png' : `https://ui-avatars.com/api/?name=${c.contact}`);
+                const name = c.display_name || c.contact;
+                
+                return `
+                <div onclick="openChat('${c.contact}', ${isGroup}, '${pic}', '${name}')" class="flex items-center gap-3 p-3 active:bg-[#1C1C1E] cursor-pointer transition border-b border-[#2C2C2E]/50">
+                    <img src="${pic}" class="w-14 h-14 rounded-full bg-[#2C2C2E] object-cover shrink-0">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline mb-1">
+                            <h4 class="text-white font-semibold truncate text-[16px]">${name}</h4>
+                            <span class="text-[#8E8E93] text-xs">${c.last_time || ''}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <p class="text-[#8E8E93] text-sm truncate pr-2 w-full">${c.last_sender === me.username ? 'Você: ' : ''}${c.last_msg || 'Nova conversa'}</p>
+                            ${c.unread > 0 ? `<div class="w-5 h-5 bg-[#0A84FF] rounded-full flex items-center justify-center text-[10px] font-bold text-white">${c.unread}</div>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function openChat(id, isGroup, avatar, name) {
+            active = id;
+            activeIsGroup = isGroup;
+            document.getElementById('chat-win').classList.remove('hidden');
+            document.getElementById('chat_h_name').innerText = name;
+            document.getElementById('chat_h_status').innerText = isGroup ? 'Grupo' : 'Online';
+            document.getElementById('chat_h_img').src = avatar;
+            loadMsgs();
+            socket.emit('mark_read', { s: active, r: me.username, isGroup });
+        }
+
+        function closeChat() {
+            document.getElementById('chat-win').classList.add('hidden');
+            active = null;
+            loadChats();
+        }
+
+        async function loadMsgs() {
+            if(!active) return;
+            const msgs = await fetch(`/messages/${me.username}/${active}`).then(r => r.json());
+            const flow = document.getElementById('msg_flow');
+            
+            let lastDate = null;
+            
+            flow.innerHTML = msgs.map(m => {
+                const isMe = m.s === me.username;
+                // Lógica de bolha
+                const showSender = activeIsGroup && !isMe;
+                return `
+                <div class="${isMe ? 'msg-me' : 'msg-them'} msg-bubble flex flex-col">
+                    ${showSender ? `<span class="msg-group-sender">${m.s}</span>` : ''}
+                    <span>${m.c}</span>
+                    <span class="text-[10px] opacity-60 self-end mt-1">${m.f_time} ${isMe && !activeIsGroup && m.status == 2 ? '✓✓' : ''}</span>
+                </div>`;
+            }).join('');
+            flow.scrollTop = flow.scrollHeight;
+        }
+
+        function sendMsg() {
+            const input = document.getElementById('m_in');
+            const txt = input.value.trim();
+            if(!txt || !active) return;
+            
+            socket.emit('send_msg', {
+                s: me.username,
+                r: active,
+                c: txt,
+                type: 'text',
+                isGroup: activeIsGroup
+            });
+            input.value = '';
+            // Otimistic UI update could happen here, but we wait for socket echo for simplicity
+        }
+
+        socket.on('new_msg', m => {
+            // Se estou no chat ativo, atualiza
+            if(active && ( (activeIsGroup && m.group_id == active) || (!activeIsGroup && (m.s == active || m.r == active)) )) {
+                loadMsgs();
+                // Scroll to bottom
+            }
+            loadChats();
         });
 
-        async function installApp() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    deferredPrompt = null;
-                    document.getElementById('install-btn').classList.add('hidden');
+        // --- VOICE CALLS (WEBRTC) ---
+        async function startVoiceCall() {
+            if(activeIsGroup) return alert("Chamadas de grupo em breve.");
+            
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setupPeerConnection();
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                
+                socket.emit('call_user', { userToCall: active, signalData: offer, from: me.username });
+                
+                showActiveCallUI(active, document.getElementById('chat_h_img').src, "Chamando...");
+            } catch(e) {
+                console.error(e);
+                alert("Erro ao acessar microfone ou iniciar chamada.");
+            }
+        }
+
+        socket.on('call_incoming', (data) => {
+            callIncomingData = data;
+            document.getElementById('inc_call_name').innerText = data.from;
+            document.getElementById('inc_call_avatar').src = `https://ui-avatars.com/api/?name=${data.from}`;
+            document.getElementById('call-incoming-overlay').classList.remove('hidden');
+            document.getElementById('call-incoming-overlay').classList.add('flex');
+        });
+
+        async function acceptCall() {
+            document.getElementById('call-incoming-overlay').classList.add('hidden');
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setupPeerConnection();
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(callIncomingData.signal));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                socket.emit('answer_call', { signal: answer, to: callIncomingData.from });
+                showActiveCallUI(callIncomingData.from, `https://ui-avatars.com/api/?name=${callIncomingData.from}`, "Conectado");
+                
+            } catch(e) { alert("Erro ao aceitar"); }
+        }
+
+        function rejectCall() {
+            document.getElementById('call-incoming-overlay').classList.add('hidden');
+            // Emitir evento de recusa se desejado
+        }
+
+        socket.on('call_accepted', async (signal) => {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(signal));
+            document.getElementById('call_timer').innerText = "Conectado";
+            startCallTimer();
+        });
+
+        socket.on('ice_candidate', async (candidate) => {
+            if(peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        });
+
+        socket.on('call_ended', endCallLocal);
+
+        function setupPeerConnection() {
+            peerConnection = new RTCPeerConnection(rtcConfig);
+            peerConnection.onicecandidate = (e) => {
+                if(e.candidate && (active || callIncomingData)) {
+                    const target = active || callIncomingData.from;
+                    socket.emit('ice_candidate', { to: target, candidate: e.candidate });
                 }
-            }
+            };
+            peerConnection.ontrack = (e) => {
+                document.getElementById('remote_audio').srcObject = e.streams[0];
+            };
         }
 
-        // --- SISTEMA ORIGINAL ---
-        const socket = io({ reconnection: true });
-        let me = null, active = null;
-        let mediaRecorder = null, audioChunks = [], isRecording = false;
-        let toastTimeout = null, lastToastUser = null, currentAudio = null;
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-        function playBeep() {
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.frequency.value = 800; gain.gain.value = 0.1;
-            osc.start(); setTimeout(() => osc.stop(), 150);
+        function showActiveCallUI(name, avatar, status) {
+            const ui = document.getElementById('call-active-overlay');
+            ui.classList.remove('hidden');
+            ui.classList.add('flex');
+            document.getElementById('act_call_name').innerText = name;
+            document.getElementById('act_call_avatar').src = avatar;
+            document.getElementById('call_timer').innerText = status;
         }
 
-        function getTickIcon(status) {
-            const color = status == 2 ? '#3b82f6' : '#71717a'; 
-            if (status == 0) return `<svg class="w-3 h-3 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M5 13l4 4L19 7"/></svg>`;
-            return `<svg class="w-4 h-4" style="color:${color}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/><path d="M20 12L13 19l-2-2"/></svg>`; 
+        function endCall() {
+            const target = active || (callIncomingData ? callIncomingData.from : null);
+            if(target) socket.emit('end_call', { to: target });
+            endCallLocal();
         }
 
-        // --- AUDIO PLAYER ---
-        function toggleAudio(id) {
-            const audio = document.getElementById(`audio_${id}`);
-            const btnIcon = document.getElementById(`btn_icon_${id}`);
-            if(currentAudio && currentAudio !== audio) {
-                currentAudio.pause();
-                const oldId = currentAudio.id.replace('audio_', '');
-                document.getElementById(`btn_icon_${oldId}`).innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
-            }
-            if (audio.paused) {
-                audio.play(); currentAudio = audio;
-                btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/>'; 
+        function endCallLocal() {
+            if(peerConnection) peerConnection.close();
+            if(localStream) localStream.getTracks().forEach(t => t.stop());
+            document.getElementById('call-active-overlay').classList.add('hidden');
+            document.getElementById('call-active-overlay').classList.remove('flex');
+            clearInterval(callTimerInt);
+            active = null; // Cuidado aqui, dependendo da UX desejada
+        }
+
+        function startCallTimer() {
+            let s = 0;
+            callTimerInt = setInterval(() => {
+                s++;
+                const m = Math.floor(s/60);
+                const sec = s%60;
+                document.getElementById('call_timer').innerText = `${m}:${sec<10?'0'+sec:sec}`;
+            }, 1000);
+        }
+
+        // --- FEED ---
+        async function loadFeed() {
+            const posts = await fetch('/get-feed').then(r => r.json());
+            document.getElementById('feed_list').innerHTML = posts.map(p => {
+                return `
+                <div class="bg-[#1C1C1E] mb-4 pb-2">
+                    <div class="flex items-center gap-3 p-3">
+                        <img src="${p.user_avatar || 'https://ui-avatars.com/api/?name='+p.username}" class="w-8 h-8 rounded-full">
+                        <span class="font-bold text-sm">${p.username}</span>
+                    </div>
+                    ${p.type === 'image' ? `<img src="${p.content}" class="w-full h-auto max-h-[500px] object-cover">` : `<div class="p-4 text-lg font-serif">${p.content}</div>`}
+                    <div class="p-3 pt-2">
+                        ${p.caption ? `<p class="text-sm"><span class="font-bold mr-2">${p.username}</span>${p.caption}</p>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function openPostModal() {
+            const modal = document.getElementById('modal-container');
+            modal.innerHTML = `
+                <div class="bg-[#1C1C1E] w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 slide-up">
+                    <h2 class="text-xl font-bold mb-4">Novo Post</h2>
+                    <textarea id="post_text" class="w-full bg-[#2C2C2E] p-4 rounded-xl text-white mb-4 h-32" placeholder="Legenda ou texto..."></textarea>
+                    <label class="block w-full bg-[#2C2C2E] p-4 rounded-xl text-center text-[#0A84FF] mb-4 cursor-pointer">
+                        📷 Adicionar Foto (Opcional)
+                        <input type="file" id="post_img" class="hidden" accept="image/*">
+                    </label>
+                    <button onclick="submitPost()" class="w-full bg-[#0A84FF] py-3 rounded-xl font-bold">Postar</button>
+                    <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="w-full py-3 text-red-500 mt-2">Cancelar</button>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+        }
+
+        async function submitPost() {
+            const txt = document.getElementById('post_text').value;
+            const file = document.getElementById('post_img').files[0];
+            
+            if(!txt && !file) return;
+
+            let content = txt;
+            let type = 'text';
+            let caption = '';
+
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = async () => {
+                    await fetch('/post-feed', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ username: me.username, content: reader.result, caption: txt, type: 'image' })
+                    });
+                    document.getElementById('modal-container').classList.add('hidden');
+                    loadFeed();
+                };
+                reader.readAsDataURL(file);
             } else {
-                audio.pause();
-                btnIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
+                await fetch('/post-feed', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username: me.username, content: txt, caption: '', type: 'text' })
+                });
+                document.getElementById('modal-container').classList.add('hidden');
+                loadFeed();
             }
         }
-        function updateProgress(id) {
-            const audio = document.getElementById(`audio_${id}`);
-            const range = document.getElementById(`range_${id}`);
-            document.getElementById(`time_${id}`).innerText = `${Math.floor(audio.currentTime/60)}:${Math.floor(audio.currentTime%60).toString().padStart(2,'0')}`;
-            range.value = (audio.currentTime / audio.duration) * 100 || 0;
-        }
-        function seekAudio(id, val) {
-            const audio = document.getElementById(`audio_${id}`);
-            audio.currentTime = (val / 100) * audio.duration;
-        }
-        function audioEnded(id) {
-            document.getElementById(`btn_icon_${id}`).innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>';
-            document.getElementById(`range_${id}`).value = 0;
-        }
-        function setDuration(id) {
-            const audio = document.getElementById(`audio_${id}`);
-            const m = Math.floor(audio.duration / 60); const s = Math.floor(audio.duration % 60);
-            if(!isNaN(audio.duration)) document.getElementById(`time_${id}`).innerText = `${m}:${s < 10 ? '0'+s : s}`;
+
+        // --- GROUPS UI ---
+        async function openNewGroup() {
+            // Fetch users to add
+            const users = await fetch('/users-all').then(r => r.json());
+            const filtered = users.filter(u => u.username !== me.username);
+            
+            const modal = document.getElementById('modal-container');
+            modal.innerHTML = `
+                <div class="bg-[#1C1C1E] w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 slide-up h-[80vh] flex flex-col">
+                    <h2 class="text-xl font-bold mb-4">Novo Grupo</h2>
+                    <input id="new_group_name" placeholder="Nome do Grupo" class="w-full bg-[#2C2C2E] p-4 rounded-xl text-white mb-4">
+                    <p class="text-sm text-gray-400 mb-2">Selecionar Membros:</p>
+                    <div class="flex-1 overflow-y-auto mb-4 bg-[#000] p-2 rounded-xl">
+                        ${filtered.map(u => `
+                            <div class="flex items-center gap-3 p-2 border-b border-[#2C2C2E]">
+                                <input type="checkbox" value="${u.username}" class="chk-member w-5 h-5 accent-[#0A84FF]">
+                                <img src="${u.avatar || 'https://ui-avatars.com/api/?name='+u.username}" class="w-8 h-8 rounded-full">
+                                <span>${u.username}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    <button onclick="createGroup()" class="w-full bg-[#0A84FF] py-3 rounded-xl font-bold">Criar</button>
+                    <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="w-full py-3 text-red-500 mt-2">Cancelar</button>
+                </div>
+            `;
+            modal.classList.remove('hidden');
         }
 
-        // --- SOCKET HANDLERS ---
-        socket.on('connect', () => { if(me) { socket.emit('join', me.username); if(active) loadMsgs(); loadChats(); }});
-        socket.on('new_msg', m => { playBeep(); if(active && (m.s===active||m.r===active)) { loadMsgs(); socket.emit('mark_read',{s:active,r:me.username}); } else showToast(`Nova mensagem de ${m.s}`,m.s); loadChats(); });
-        socket.on('msg_sent_ok', () => { if(active) loadMsgs(); loadChats(); });
-        socket.on('msgs_read_update', d => { if(active===d.reader) loadMsgs(); loadChats(); });
+        function createGroup() {
+            const name = document.getElementById('new_group_name').value.trim();
+            if(!name) return alert("Nome obrigatório");
+            const checks = document.querySelectorAll('.chk-member:checked');
+            const members = Array.from(checks).map(c => c.value);
+            
+            socket.emit('create_group', { name, members, owner: me.username });
+            document.getElementById('modal-container').classList.add('hidden');
+        }
 
-        // --- UI GERAL ---
-        function showToast(msg,u){ const b=document.getElementById('toast-box'); document.getElementById('toast-msg').innerText=msg; b.classList.remove('-translate-y-24'); b.classList.add('translate-y-0'); lastToastUser=u; if(toastTimeout) clearTimeout(toastTimeout); toastTimeout=setTimeout(()=>{ b.classList.add('-translate-y-24'); b.classList.remove('translate-y-0'); },3000); }
-        function clickToast(){ if(lastToastUser){ document.getElementById('toast-box').classList.add('-translate-y-24'); openChat(lastToastUser); } }
-        function tab(t){ ['view-chats','view-status','view-profile'].forEach(id=>document.getElementById(id).classList.add('hidden')); document.getElementById('t-chats').className='flex-1 py-4 text-xs font-bold tab-inactive'; document.getElementById('t-status').className='flex-1 py-4 text-xs font-bold tab-inactive'; document.getElementById('view-'+t).classList.remove('hidden'); if(t!=='profile'){ document.getElementById('t-'+t).className='flex-1 py-4 text-xs font-bold tab-active'; document.getElementById('fab-btn').classList.remove('hidden'); } else document.getElementById('fab-btn').classList.add('hidden'); if(t==='chats') loadChats(); if(t==='status') loadStatus(); document.getElementById('settings-menu').classList.add('hidden'); }
-        function toggleSettings(){ document.getElementById('settings-menu').classList.toggle('hidden'); }
-        function goToProfile(){ tab('profile'); }
-        
-        async function access(type){ 
-            const u=document.getElementById('u_auth').value.trim(); const p=document.getElementById('p_auth').value.trim();
-            if(!u||!p) return alert("Preencha");
-            const res = await fetch('/'+type,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-            if(res.ok){ if(type==='login'){ me=await res.json(); localStorage.setItem('red_v3',JSON.stringify(me)); location.reload(); } else alert("Sucesso! Faça login."); } else alert("Erro");
-        }
-        window.onload = () => { const saved=localStorage.getItem('red_v3'); if(saved){ try{ me=JSON.parse(saved); document.getElementById('auth-screen').remove(); document.getElementById('app').classList.remove('hidden'); socket.emit('join',me.username); updateUI(); tab('chats'); }catch(e){localStorage.clear();} } };
-        function updateUI(){ const pic=me.avatar&&me.avatar.length>10?me.avatar:`https://ui-avatars.com/api/?name=${me.username}`; document.getElementById('header_pic').src=pic; document.getElementById('profile_pic_large').src=pic; document.getElementById('my_bio').value=me.bio||''; }
-        
-        // --- CORE CHAT ---
-        async function loadChats(){
-            const data=await fetch(`/chats/${me.username}`).then(r=>r.json());
-            const list=document.getElementById('view-chats');
-            if(data.length===0){ list.innerHTML=`<div class="text-center text-zinc-500 mt-10 text-sm">Sem conversas.</div>`; return; }
-            list.innerHTML=data.map(c=>{
-                const isMe=c.last_sender===me.username;
-                const pic=c.avatar&&c.avatar.length>10?c.avatar:`https://ui-avatars.com/api/?name=${c.contact}`;
-                return `<div onclick="openChat('${c.contact}')" class="p-4 flex items-center gap-3 border-b border-zinc-800 cursor-pointer active:bg-zinc-800"><img src="${pic}" class="w-12 h-12 rounded-full object-cover bg-zinc-800"><div class="flex-1 min-w-0"><div class="flex justify-between items-baseline"><h4 class="font-bold text-sm text-zinc-100 truncate">${c.contact}</h4><span class="text-[10px] text-zinc-500">${c.last_time||''}</span></div><div class="flex items-center justify-between mt-1"><div class="flex items-center gap-1 text-xs text-zinc-400 truncate pr-2">${isMe?getTickIcon(c.last_status):''} <span class="truncate">${c.last_type==='audio'?'🎵 Áudio':(c.last_msg||'')}</span></div>${c.unread>0?`<div class="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0">${c.unread}</div>`:''}</div></div></div>`;
-            }).join('');
-        }
-        async function openChat(u){ active=u; document.getElementById('chat-win').classList.remove('hidden'); document.getElementById('chat_h_name').innerText=u; const info=await fetch('/user/'+u).then(r=>r.json()); document.getElementById('chat_h_img').src=info.avatar&&info.avatar.length>10?info.avatar:`https://ui-avatars.com/api/?name=${u}`; loadMsgs(); socket.emit('mark_read',{s:active,r:me.username}); }
-        function closeChat(){ document.getElementById('chat-win').classList.add('hidden'); active=null; if(currentAudio) currentAudio.pause(); loadChats(); }
-        
-        async function loadMsgs(){
-            if(!active) return;
-            const msgs=await fetch(`/messages/${me.username}/${active}`).then(r=>r.json());
-            document.getElementById('msg_flow').innerHTML = msgs.map((m,i)=>{
-                const isMe=m.s===me.username;
-                const uid=m.id||i;
-                let content;
-                if(m.type==='audio'){
-                    content = `<div class="flex items-center gap-3 w-56 audio-player text-white/90">
-                        <div class="relative w-10 h-10 flex items-center justify-center shrink-0">
-                            <button onclick="toggleAudio(${uid})" class="w-10 h-10 bg-black/20 rounded-full flex items-center justify-center play-btn border border-white/10"><svg id="btn_icon_${uid}" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
+        socket.on('group_created', () => loadChats());
+
+        function openChatSettings() {
+            if(!activeIsGroup) return; // Só para grupos por enquanto
+            fetch('/group/'+active).then(r=>r.json()).then(g => {
+                const modal = document.getElementById('modal-container');
+                modal.innerHTML = `
+                    <div class="bg-[#1C1C1E] w-full max-w-lg rounded-t-2xl sm:rounded-2xl p-6 slide-up max-h-[80vh] overflow-y-auto">
+                        <div class="flex flex-col items-center mb-4">
+                            <img src="${g.avatar || 'https://cdn-icons-png.flaticon.com/512/694/694642.png'}" class="w-24 h-24 rounded-full mb-2 bg-[#2C2C2E]">
+                            <h2 class="text-2xl font-bold">${g.name}</h2>
+                            <p class="text-gray-500 text-sm">${g.description}</p>
                         </div>
-                        <div class="flex-1 flex flex-col justify-center gap-1"><input type="range" id="range_${uid}" value="0" step="0.1" oninput="seekAudio(${uid},this.value)"><div class="flex justify-between text-[10px] opacity-80 font-mono"><span id="time_${uid}">0:00</span></div></div>
-                        <div class="opacity-50 shrink-0"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"/></svg></div>
-                        <audio id="audio_${uid}" src="${m.c}" class="hidden" ontimeupdate="updateProgress(${uid})" onended="audioEnded(${uid})" onloadedmetadata="setDuration(${uid})"></audio>
-                    </div>`;
-                } else content = `<p class="text-sm leading-relaxed">${m.c}</p>`;
-                return `<div class="${isMe?'msg-me':'msg-them'}">${content}<div class="msg-meta"><span>${m.f_time}</span>${isMe?`<span>${getTickIcon(m.status)}</span>`:''}</div></div>`;
-            }).join('');
-            const f=document.getElementById('msg_flow'); f.scrollTop=f.scrollHeight;
+                        <h3 class="font-bold mb-2">Membros (${g.members.length})</h3>
+                        <div class="flex flex-col gap-2">
+                            ${g.members.map(m => `
+                                <div class="flex items-center justify-between p-2 bg-[#2C2C2E] rounded-lg">
+                                    <span class="${m.is_admin ? 'text-[#0A84FF] font-bold' : ''}">${m.username}</span>
+                                    ${m.is_admin ? '<span class="text-xs bg-[#0A84FF]/20 text-[#0A84FF] px-2 py-1 rounded">Admin</span>' : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="w-full py-3 bg-[#2C2C2E] rounded-xl mt-6 font-bold">Fechar</button>
+                    </div>
+                `;
+                modal.classList.remove('hidden');
+            });
+        }
+        
+        function openNewChat() {
+             const modal = document.getElementById('modal-container');
+             modal.innerHTML = `
+                <div class="bg-[#1C1C1E] w-full max-w-sm rounded-2xl p-6 slide-up">
+                    <h2 class="text-xl font-bold mb-4">Nova Mensagem</h2>
+                    <input id="nc_input" class="w-full bg-[#2C2C2E] p-4 rounded-xl text-white mb-4" placeholder="Nome do usuário exato">
+                    <button onclick="startNewChatAction()" class="w-full bg-[#0A84FF] py-3 rounded-xl font-bold">Iniciar</button>
+                    <button onclick="document.getElementById('modal-container').classList.add('hidden')" class="w-full py-3 text-red-500 mt-2">Cancelar</button>
+                </div>
+             `;
+             modal.classList.remove('hidden');
+        }
+        
+        async function startNewChatAction() {
+            const u = document.getElementById('nc_input').value.trim();
+            const r = await fetch('/user/'+u).then(d=>d.json());
+            if(r.username) {
+                document.getElementById('modal-container').classList.add('hidden');
+                openChat(u, false, r.avatar || `https://ui-avatars.com/api/?name=${u}`, u);
+            } else alert("Usuário não encontrado");
         }
 
-        function sendMsg(type='text',content=null){ const txt=document.getElementById('m_in').value; const c=content||txt; if(!c||!active) return; socket.emit('send_msg',{s:me.username,r:active,c:c,type:type}); if(type==='text') document.getElementById('m_in').value=''; loadMsgs(); }
-        async function toggleRecording(){ const btn=document.getElementById('mic_btn'); if(!isRecording){ try{ const s=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(s); audioChunks=[]; mediaRecorder.ondataavailable=e=>audioChunks.push(e.data); mediaRecorder.onstop=()=>{ const r=new FileReader(); r.readAsDataURL(new Blob(audioChunks,{type:'audio/webm'})); r.onloadend=()=>sendMsg('audio',r.result); }; mediaRecorder.start(); isRecording=true; btn.innerHTML='🛑'; document.getElementById('m_in').placeholder="Gravando..."; }catch(e){alert("Mic bloqueado");} } else { mediaRecorder.stop(); isRecording=false; btn.innerHTML='🎤'; document.getElementById('m_in').placeholder="Mensagem..."; } }
-
-        function previewAvatar(e){ const f=e.target.files[0]; if(f){const r=new FileReader();r.onload=()=>document.getElementById('profile_pic_large').src=r.result;r.readAsDataURL(f);} }
-        async function saveProfile(){ const a=document.getElementById('profile_pic_large').src; const b=document.getElementById('my_bio').value; const s=a.startsWith('data:')?a:(me.avatar||''); await fetch('/update-profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:me.username,bio:b,avatar:s})}); if(s)me.avatar=s; me.bio=b; localStorage.setItem('red_v3',JSON.stringify(me)); updateUI(); alert("Salvo!"); tab('chats'); }
-        async function viewContactProfile(){ if(!active)return; const i=await fetch('/user/'+active).then(r=>r.json()); document.getElementById('op_name').innerText=i.username; document.getElementById('op_bio').innerText=i.bio||"Sem bio"; document.getElementById('op_avatar').src=i.avatar&&i.avatar.length>10?i.avatar:`https://ui-avatars.com/api/?name=${i.username}`; const m=document.getElementById('other-profile-modal'); m.classList.remove('hidden'); m.classList.add('flex'); }
-        function closeOtherProfile(){ const m=document.getElementById('other-profile-modal'); m.classList.add('hidden'); m.classList.remove('flex'); }
-        async function postStatus(e){ const f=e.target.files[0]; if(!f)return; const r=new FileReader(); r.onload=async()=>{ await fetch('/post-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:me.username,content:r.result})}); loadStatus(); }; r.readAsDataURL(f); }
-        async function loadStatus(){ const d=await fetch('/get-status').then(r=>r.json()); document.getElementById('st_grid').innerHTML=d.map(s=>`<div class="aspect-[9/16] bg-zinc-800 rounded-xl overflow-hidden relative shadow-lg"><img src="${s.content}" class="w-full h-full object-cover"><div class="absolute bottom-2 left-2 flex gap-2 items-center"><img src="${s.avatar||'https://ui-avatars.com/api/?name='+s.username}" class="w-6 h-6 rounded-full border border-blue-500"><span class="text-[10px] font-bold text-white shadow-black drop-shadow-md">${s.username}</span></div></div>`).join(''); }
-        function openNewChatModal(){document.getElementById('new-chat-modal').classList.remove('hidden');} function closeNewChatModal(){document.getElementById('new-chat-modal').classList.add('hidden');}
-        async function startNewChat(){ const u=document.getElementById('nc_input').value.trim(); if(u===me.username)return alert("Erro"); const r=await fetch('/user/'+u).then(d=>d.json()); if(r.username){closeNewChatModal();openChat(u);}else alert("Não achou"); }
-        function logout(){localStorage.removeItem('red_v3');location.reload();}
     </script>
 </body>
 </html>
