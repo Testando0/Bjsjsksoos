@@ -1,7 +1,7 @@
 {
-  "name": "red-protocol",
-  "version": "3.0.0",
-  "description": "Chat Profissional com Audio e Status - V22",
+  "name": "red-protocol-pro",
+  "version": "4.0.0",
+  "description": "Messenger Pro: Voice, Groups, Feed",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
