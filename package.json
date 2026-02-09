@@ -1,7 +1,7 @@
 {
-  "name": "red-protocol-pro",
-  "version": "4.0.0",
-  "description": "Messenger Pro: Voice, Groups, Feed",
+  "name": "whatsapp-ios-clone",
+  "version": "3.1.0",
+  "description": "Chat Profissional estilo iOS",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
