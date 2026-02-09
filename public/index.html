@@ -3,95 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Chat iOS</title>
+    <title>Chat iOS Dark</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        /* CSS RESET E CONFIGURAÇÕES VISUAIS */
-        :root { --bg-app: #F2F2F7; --bubble-me: #E1FFC7; --bubble-them: #FFFFFF; }
-        body, html { height: 100%; width: 100%; overflow: hidden; background: var(--bg-app); font-family: -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
+        /* --- CONFIGURAÇÕES DARK MODE & RED THEME --- */
+        :root {
+            --bg-app: #000000;
+            --bg-secondary: #1C1C1E; /* Cinza iOS Dark */
+            --bg-header: #161616;
+            --text-primary: #FFFFFF;
+            --text-secondary: #8E8E93;
+            --separator: #2C2C2E;
+            --accent-color: #FF3B30; /* Vermelho iOS */
+            
+            /* Cores dos Balões */
+            --bubble-me: #3E1010; /* Vermelho Escuro Sutil */
+            --bubble-them: #2C2C2E; /* Cinza Escuro */
+            
+            /* Background do Chat (Imagem escura) */
+            --chat-bg-color: #0b141a;
+        }
+
+        body, html { 
+            height: 100%; width: 100%; overflow: hidden; 
+            background: var(--bg-app); 
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+        }
         
-        /* CAMADAS (Z-INDEX) PARA EVITAR BUG DE SOBREPOSIÇÃO */
-        #login-screen { z-index: 9999; }
-        #main-app { z-index: 10; position: absolute; inset: 0; display: flex; flex-direction: column; }
+        /* LAYOUT & Z-INDEX */
+        #login-screen { z-index: 9999; background-color: var(--bg-app); }
+        #main-app { z-index: 10; position: absolute; inset: 0; display: flex; flex-direction: column; background-color: var(--bg-app); }
         
         /* TELA DE CHAT (SLIDE OVER) */
         #chat-room { 
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background-color: #E5DDD5; /* FUNDO SÓLIDO OBRIGATÓRIO */
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-            z-index: 100; /* BEM ACIMA DA TELA INICIAL */
-            transform: translateX(100%); transition: transform 0.3s ease-in-out;
+            background-color: var(--chat-bg-color);
+            background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-blend-mode: overlay;
+            z-index: 100;
+            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             display: flex; flex-direction: column;
         }
         .chat-open { transform: translateX(0) !important; }
         
-        /* BALÕES */
-        .msg-bubble { max-width: 75%; padding: 6px 10px; font-size: 16px; border-radius: 8px; margin-bottom: 2px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); position: relative; }
-        .msg-me { background: var(--bubble-me); align-self: flex-end; border-radius: 18px 18px 4px 18px; margin-right: 10px; }
-        .msg-them { background: var(--bubble-them); align-self: flex-start; border-radius: 18px 18px 18px 4px; margin-left: 10px; }
+        /* BALÕES DE MENSAGEM */
+        .msg-bubble { 
+            max-width: 75%; padding: 6px 10px; font-size: 16px; 
+            border-radius: 8px; margin-bottom: 4px; position: relative; 
+            color: #FFF; 
+        }
+        .msg-me { 
+            background: var(--bubble-me); align-self: flex-end; 
+            border-radius: 18px 18px 4px 18px; margin-right: 10px; 
+        }
+        .msg-them { 
+            background: var(--bubble-them); align-self: flex-start; 
+            border-radius: 18px 18px 18px 4px; margin-left: 10px; 
+        }
         
+        /* CLASSES UTILITÁRIAS CUSTOMIZADAS */
         .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
-        .active-tab svg { color: #007AFF; }
-        .active-tab span { color: #007AFF; }
+        
+        .active-tab svg { color: var(--accent-color); }
+        .active-tab span { color: var(--accent-color); }
+        
+        /* Inputs Dark Mode */
+        .input-dark {
+            background-color: #2C2C2E;
+            color: white;
+            border: none;
+        }
+        .input-dark::placeholder { color: #8E8E93; }
+
+        /* Scrollbar fina para dark mode */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+
+        /* Animação suave nos Ticks */
+        .tick-icon { font-size: 11px; margin-left: 3px; font-weight: bold; letter-spacing: -1px; }
+        .tick-read { color: var(--accent-color); }
+        .tick-sent { color: #8E8E93; }
     </style>
 </head>
 <body>
 
-    <div id="login-screen" class="fixed inset-0 bg-white flex flex-col items-center justify-center p-8">
-        <h1 class="text-3xl font-bold mb-8 text-[#007AFF]">WhatsApp Clone</h1>
-        <input id="u_auth" placeholder="Usuário" class="w-full bg-gray-100 p-4 rounded-xl mb-3 outline-none border focus:border-blue-500">
-        <input id="p_auth" type="password" placeholder="Senha" class="w-full bg-gray-100 p-4 rounded-xl mb-6 outline-none border focus:border-blue-500">
-        <button onclick="auth('login')" class="w-full bg-[#007AFF] text-white py-4 rounded-xl font-bold">Entrar</button>
-        <button onclick="auth('register')" class="mt-4 text-[#007AFF] font-medium">Criar Conta</button>
+    <div id="login-screen" class="fixed inset-0 flex flex-col items-center justify-center p-8">
+        <h1 class="text-3xl font-bold mb-8 text-[#FF3B30]">WhatsApp Clone</h1>
+        <input id="u_auth" placeholder="Usuário" class="w-full input-dark p-4 rounded-xl mb-3 outline-none focus:ring-1 focus:ring-red-500">
+        <input id="p_auth" type="password" placeholder="Senha" class="w-full input-dark p-4 rounded-xl mb-6 outline-none focus:ring-1 focus:ring-red-500">
+        <button onclick="auth('login')" class="w-full bg-[#FF3B30] active:bg-red-700 text-white py-4 rounded-xl font-bold transition">Entrar</button>
+        <button onclick="auth('register')" class="mt-4 text-[#FF3B30] font-medium">Criar Conta</button>
     </div>
 
     <div id="main-app" class="hidden">
         
-        <header class="bg-[#F6F6F6] border-b border-[#C6C6C8] pt-12 pb-3 px-4 flex justify-between items-center shrink-0">
-            <button class="text-[#007AFF] text-[17px]">Editar</button>
-            <h1 class="font-bold text-[17px]">Conversas</h1>
-            <button onclick="document.getElementById('new-chat-modal').classList.remove('hidden')" class="text-[#007AFF]">
+        <header class="bg-[#161616] border-b border-[#2C2C2E] pt-safe pb-3 px-4 flex justify-between items-center shrink-0 min-h-[60px]">
+            <button class="text-[#FF3B30] text-[17px]">Editar</button>
+            <h1 class="font-bold text-[18px] text-white">Conversas</h1>
+            <button onclick="document.getElementById('new-chat-modal').classList.remove('hidden')" class="text-[#FF3B30]">
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             </button>
         </header>
 
-        <div class="flex-1 overflow-y-auto bg-white relative">
+        <div class="flex-1 overflow-y-auto relative">
             
             <div id="tab-chats" class="w-full">
-                <div class="px-4 py-2 bg-[#F6F6F6]"><input placeholder="Pesquisar" class="w-full bg-[#E3E3E8] rounded-lg px-3 py-1.5 text-center outline-none"></div>
-                <div id="chat-list" class="pl-4"></div>
+                <div class="px-4 py-2 bg-[#161616]">
+                    <input placeholder="Pesquisar" class="w-full bg-[#2C2C2E] text-white rounded-lg px-3 py-1.5 text-center outline-none placeholder-gray-500 focus:text-left focus:pl-3 transition-all">
+                </div>
+                <div id="chat-list" class="pl-4 border-t border-[#2C2C2E]"></div>
             </div>
 
-            <div id="tab-status" class="hidden w-full bg-[#F2F2F7] min-h-full pb-20">
-                <h1 class="text-3xl font-bold px-4 py-4">Status</h1>
-                <div class="bg-white px-4 py-3 flex items-center gap-3 border-y border-[#C6C6C8]" onclick="document.getElementById('status_file').click()">
-                     <img id="my_status_pic" class="w-14 h-14 rounded-full bg-gray-300 object-cover">
-                     <div><h3 class="font-bold">Meu Status</h3><p class="text-gray-500 text-sm">Adicionar ao meu status</p></div>
+            <div id="tab-status" class="hidden w-full min-h-full pb-20">
+                <h1 class="text-3xl font-bold px-4 py-4 text-white">Status</h1>
+                <div class="bg-[#1C1C1E] px-4 py-3 flex items-center gap-3 border-y border-[#2C2C2E]" onclick="document.getElementById('status_file').click()">
+                     <img id="my_status_pic" class="w-14 h-14 rounded-full bg-gray-700 object-cover">
+                     <div><h3 class="font-bold text-white">Meu Status</h3><p class="text-gray-400 text-sm">Adicionar ao meu status</p></div>
                      <input type="file" id="status_file" hidden accept="image/*" onchange="postStatus(event)">
                 </div>
-                <div id="status-list" class="mt-6 bg-white pl-4 border-t border-[#C6C6C8]"></div>
+                <div id="status-list" class="mt-6 bg-[#1C1C1E] pl-4 border-t border-[#2C2C2E]"></div>
             </div>
 
-            <div id="tab-settings" class="hidden w-full bg-[#F2F2F7] min-h-full pb-20">
-                <h1 class="text-3xl font-bold px-4 py-4">Ajustes</h1>
-                <div class="bg-white border-y border-[#C6C6C8] flex items-center p-4 gap-4 mb-8" onclick="document.getElementById('avatar_file').click()">
-                    <img id="settings_avatar" class="w-16 h-16 rounded-full bg-gray-300 object-cover">
+            <div id="tab-settings" class="hidden w-full min-h-full pb-20">
+                <h1 class="text-3xl font-bold px-4 py-4 text-white">Ajustes</h1>
+                <div class="bg-[#1C1C1E] border-y border-[#2C2C2E] flex items-center p-4 gap-4 mb-8" onclick="document.getElementById('avatar_file').click()">
+                    <img id="settings_avatar" class="w-16 h-16 rounded-full bg-gray-700 object-cover">
                     <div class="flex-1">
-                        <h2 id="settings_name" class="text-xl font-semibold">User</h2>
-                        <p class="text-gray-500 text-sm">Toque para mudar foto</p>
+                        <h2 id="settings_name" class="text-xl font-semibold text-white">User</h2>
+                        <p class="text-gray-400 text-sm">Toque para mudar foto</p>
                     </div>
                     <input type="file" id="avatar_file" hidden accept="image/*" onchange="updateProfilePic(event)">
                 </div>
-                <div class="bg-white border-y border-[#C6C6C8] p-4 mb-8">
+                <div class="bg-[#1C1C1E] border-y border-[#2C2C2E] p-4 mb-8">
                     <label class="text-xs text-gray-500 uppercase">Recado</label>
-                    <input id="settings_bio" class="w-full mt-1 text-[17px] outline-none" onblur="saveBio(this.value)">
+                    <input id="settings_bio" class="w-full mt-1 text-[17px] bg-transparent text-white outline-none" onblur="saveBio(this.value)">
                 </div>
-                <button onclick="logout()" class="w-full bg-white p-4 text-red-500 text-lg border-y border-[#C6C6C8] text-left">Sair</button>
+                <button onclick="logout()" class="w-full bg-[#1C1C1E] p-4 text-[#FF3B30] text-lg border-y border-[#2C2C2E] text-left">Sair</button>
             </div>
         </div>
 
-        <nav class="bg-[#F6F6F6] border-t border-[#C6C6C8] h-[83px] flex justify-around pt-2 pb-safe shrink-0 z-50">
+        <nav class="bg-[#161616]/95 backdrop-blur border-t border-[#2C2C2E] h-[83px] flex justify-around pt-2 pb-safe shrink-0 z-50">
             <button onclick="switchTab('status')" id="btn-status" class="flex flex-col items-center gap-1 w-16 text-[#8E8E93]">
                 <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 <span class="text-[10px] font-medium">Status</span>
@@ -108,54 +162,54 @@
     </div>
 
     <div id="chat-room">
-        <header class="h-24 bg-[#F6F6F6]/95 backdrop-blur border-b border-[#C6C6C8] flex items-end px-2 pb-2 shrink-0 z-50 shadow-sm">
-            <button onclick="closeChat()" class="flex items-center text-[#007AFF] pr-2 pb-1 h-10">
+        <header class="h-16 bg-[#161616]/95 backdrop-blur border-b border-[#2C2C2E] flex items-center px-2 shrink-0 z-50 shadow-sm pt-safe">
+            <button onclick="closeChat()" class="flex items-center text-[#FF3B30] pr-2 h-full">
                 <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
                 <span class="text-[17px] -ml-1">Voltar</span>
             </button>
-            <div class="flex-1 flex items-center gap-3 cursor-pointer pb-1" onclick="document.getElementById('contact-modal').classList.remove('hidden')">
-                <img id="chat_avatar" class="w-9 h-9 rounded-full bg-gray-300 object-cover border border-gray-200">
+            <div class="flex-1 flex items-center gap-3 cursor-pointer py-1" onclick="document.getElementById('contact-modal').classList.remove('hidden')">
+                <img id="chat_avatar" class="w-9 h-9 rounded-full bg-gray-700 object-cover border border-[#2C2C2E]">
                 <div class="flex flex-col justify-center">
-                    <h3 id="chat_name" class="font-semibold text-[16px] leading-tight text-black">--</h3>
-                    <span class="text-[11px] text-gray-500 leading-tight">Toque para dados</span>
+                    <h3 id="chat_name" class="font-semibold text-[16px] leading-tight text-white">--</h3>
+                    <span class="text-[11px] text-gray-400 leading-tight">Toque para dados</span>
                 </div>
             </div>
         </header>
 
         <div id="msg-container" class="flex-1 overflow-y-auto p-4 flex flex-col pb-4"></div>
 
-        <div class="bg-[#F6F6F6] border-t border-[#C6C6C8] px-2 py-2 flex items-end gap-2 pb-safe shrink-0">
-            <button onclick="document.getElementById('media_input').click()" class="text-[#007AFF] p-2 mb-1">
+        <div class="bg-[#161616] border-t border-[#2C2C2E] px-2 py-2 flex items-end gap-2 pb-safe shrink-0">
+            <button onclick="document.getElementById('media_input').click()" class="text-[#FF3B30] p-2 mb-1">
                 <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             </button>
             <input type="file" id="media_input" hidden accept="image/*,video/*" onchange="sendMedia(event)">
 
-            <div class="flex-1 bg-white border border-[#C6C6C8] rounded-2xl min-h-[36px] flex items-center px-3 py-1 mb-1">
-                <input id="chat-input" class="w-full bg-transparent outline-none text-[16px] max-h-24" placeholder="" onkeydown="handleKey(event)">
+            <div class="flex-1 bg-[#2C2C2E] border border-[#3A3A3C] rounded-2xl min-h-[36px] flex items-center px-3 py-1 mb-1">
+                <input id="chat-input" class="w-full bg-transparent outline-none text-[16px] text-white max-h-24" placeholder="" onkeydown="handleKey(event)">
             </div>
             
-            <button onclick="sendText()" id="send-btn" class="text-[#007AFF] font-bold p-2 mb-1 hidden">Enviar</button>
-            <button onclick="toggleMic()" id="mic-btn" class="text-[#007AFF] p-2 mb-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg></button>
+            <button onclick="sendText()" id="send-btn" class="text-[#FF3B30] font-bold p-2 mb-1 hidden">Enviar</button>
+            <button onclick="toggleMic()" id="mic-btn" class="text-[#FF3B30] p-2 mb-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg></button>
         </div>
     </div>
 
-    <div id="new-chat-modal" class="fixed inset-0 z-[200] hidden bg-black/50">
-        <div class="absolute inset-x-0 bottom-0 bg-[#F2F2F7] rounded-t-2xl p-4 pb-10">
+    <div id="new-chat-modal" class="fixed inset-0 z-[200] hidden bg-black/70 backdrop-blur-sm">
+        <div class="absolute inset-x-0 bottom-0 bg-[#1C1C1E] rounded-t-2xl p-4 pb-10 border-t border-[#3A3A3C]">
             <div class="flex justify-between mb-4">
-                <button onclick="document.getElementById('new-chat-modal').classList.add('hidden')" class="text-blue-500 font-bold">Cancelar</button>
-                <span class="font-bold">Nova Conversa</span>
+                <button onclick="document.getElementById('new-chat-modal').classList.add('hidden')" class="text-[#FF3B30] font-bold">Cancelar</button>
+                <span class="font-bold text-white">Nova Conversa</span>
                 <span class="w-10"></span>
             </div>
-            <input id="new-chat-input" placeholder="Usuário exato..." class="w-full p-3 rounded-lg border">
-            <button onclick="startChat()" class="w-full bg-blue-500 text-white font-bold py-3 mt-4 rounded-lg">Iniciar</button>
+            <input id="new-chat-input" placeholder="Usuário exato..." class="w-full p-3 rounded-lg border border-[#3A3A3C] bg-[#2C2C2E] text-white outline-none">
+            <button onclick="startChat()" class="w-full bg-[#FF3B30] active:bg-red-700 text-white font-bold py-3 mt-4 rounded-lg transition">Iniciar</button>
         </div>
     </div>
 
-    <div id="contact-modal" class="fixed inset-0 z-[200] hidden bg-black/50" onclick="this.classList.add('hidden')">
-        <div class="absolute inset-x-0 bottom-0 bg-[#F2F2F7] rounded-t-2xl h-[70%] p-6 flex flex-col items-center" onclick="event.stopPropagation()">
-            <img id="info_avatar" class="w-32 h-32 rounded-full bg-gray-300 object-cover mb-4 shadow-lg">
-            <h2 id="info_name" class="text-2xl font-bold mb-1">Nome</h2>
-            <p id="info_bio" class="text-gray-500 text-center bg-white p-4 rounded-xl w-full shadow-sm">Sem recado.</p>
+    <div id="contact-modal" class="fixed inset-0 z-[200] hidden bg-black/70 backdrop-blur-sm" onclick="this.classList.add('hidden')">
+        <div class="absolute inset-x-0 bottom-0 bg-[#1C1C1E] rounded-t-2xl h-[70%] p-6 flex flex-col items-center border-t border-[#3A3A3C]" onclick="event.stopPropagation()">
+            <img id="info_avatar" class="w-32 h-32 rounded-full bg-gray-700 object-cover mb-4 shadow-lg border-2 border-[#2C2C2E]">
+            <h2 id="info_name" class="text-2xl font-bold mb-1 text-white">Nome</h2>
+            <p id="info_bio" class="text-gray-400 text-center bg-[#2C2C2E] p-4 rounded-xl w-full shadow-sm">Sem recado.</p>
         </div>
     </div>
 
@@ -203,12 +257,11 @@
             active = u;
             const ui = await fetch('/user/'+u).then(r=>r.json());
             document.getElementById('chat_name').innerText = u;
-            document.getElementById('chat_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}`;
+            document.getElementById('chat_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
             document.getElementById('info_name').innerText = u;
-            document.getElementById('info_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}`;
+            document.getElementById('info_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
             document.getElementById('info_bio').innerText = ui.bio || "Sem recado";
             
-            // ANIMATION SLIDE
             document.getElementById('chat-room').classList.add('chat-open');
             
             const msgs = await fetch(`/messages/${me.username}/${active}`).then(r=>r.json());
@@ -227,14 +280,14 @@
         async function loadChats() {
             const d = await fetch('/chats/'+me.username).then(r=>r.json());
             document.getElementById('chat-list').innerHTML = d.map(c => `
-                <div onclick="openChat('${c.contact}')" class="flex items-center gap-3 py-3 pr-4 border-b border-[#C6C6C8] cursor-pointer bg-white active:bg-gray-100">
-                    <img src="${c.avatar||'https://ui-avatars.com/api/?name='+c.contact}" class="w-14 h-14 rounded-full bg-gray-200 object-cover shrink-0">
+                <div onclick="openChat('${c.contact}')" class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E] cursor-pointer bg-[#161616] active:bg-[#2C2C2E] transition">
+                    <img src="${c.avatar||'https://ui-avatars.com/api/?name='+c.contact+'&background=random'}" class="w-14 h-14 rounded-full bg-gray-700 object-cover shrink-0">
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-baseline">
-                            <h3 class="font-bold text-[17px] truncate">${c.contact}</h3>
-                            <span class="text-[14px] ${c.unread>0?'text-blue-500 font-bold':'text-gray-400'}">${c.last_time||''}</span>
+                            <h3 class="font-bold text-[17px] text-white truncate">${c.contact}</h3>
+                            <span class="text-[14px] ${c.unread>0?'text-[#FF3B30] font-bold':'text-gray-500'}">${c.last_time||''}</span>
                         </div>
-                        <p class="text-[15px] text-gray-500 truncate h-5">${c.last_type==='image'?'📷 Foto':(c.last_msg||'')}</p>
+                        <p class="text-[15px] text-gray-400 truncate h-5">${c.last_type==='image'?'📷 Foto':(c.last_msg||'')}</p>
                     </div>
                 </div>
             `).join('');
@@ -244,13 +297,22 @@
             const isMe = m.s === me.username;
             let body = '';
             if(m.type==='text') body = `<span class="break-words">${m.c}</span>`;
-            else if(m.type==='image') body = `<img src="${m.c}" class="rounded-lg max-w-full">`;
-            else if(m.type==='video') body = `<video src="${m.c}" controls class="rounded-lg max-w-full"></video>`;
+            else if(m.type==='image') body = `<img src="${m.c}" class="rounded-lg max-w-full border border-gray-600">`;
+            else if(m.type==='video') body = `<video src="${m.c}" controls class="rounded-lg max-w-full border border-gray-600"></video>`;
             else if(m.type==='audio') body = `<audio src="${m.c}" controls class="h-10 w-48"></audio>`;
+
+            // Lógica dos Ticks (Sent, Delivered, Read)
+            let ticks = '';
+            if(isMe) {
+                if(m.status === 0) ticks = '<span class="tick-icon tick-sent">✓</span>'; // Enviado (1 tick cinza)
+                else if(m.status === 1) ticks = '<span class="tick-icon tick-sent">✓✓</span>'; // Recebido (2 ticks cinza)
+                else if(m.status >= 2) ticks = '<span class="tick-icon tick-read">✓✓</span>'; // Lido (2 ticks vermelho)
+            }
 
             const div = document.createElement('div');
             div.className = `msg-bubble flex flex-col ${isMe ? 'msg-me' : 'msg-them'}`;
-            div.innerHTML = `${body}<div class="text-[10px] text-gray-500 self-end mt-1 flex items-center gap-1">${m.f_time||''} ${isMe && m.status==2 ? '<span class="text-blue-500">✓✓</span>' : ''}</div>`;
+            // Ajustado cor do horário para garantir contraste
+            div.innerHTML = `${body}<div class="text-[10px] text-gray-300 self-end mt-1 flex items-center gap-1 min-w-[50px] justify-end relative -mb-1">${m.f_time||''} ${ticks}</div>`;
             document.getElementById('msg-container').appendChild(div);
         }
 
@@ -267,9 +329,11 @@
             if(!txt) return;
             const data = { s:me.username, r:active, c:txt, type:'text' };
             socket.emit('send_msg', data);
-            addMsg({...data, f_time:'Agora', status:0});
+            addMsg({...data, f_time:'Agora', status:0}); // Status 0 = Relógio/Enviando (Simulado)
             scrollToBottom();
             i.value = '';
+            document.getElementById('send-btn').classList.add('hidden');
+            document.getElementById('mic-btn').classList.remove('hidden');
         }
         function sendMedia(e) {
             const f = e.target.files[0];
@@ -299,13 +363,13 @@
                     }
                 };
                 rec.start();
-                document.getElementById('mic-btn').innerHTML = '🛑';
-            } else { rec.stop(); rec=null; document.getElementById('mic-btn').innerHTML = '🎤'; }
+                document.getElementById('mic-btn').innerHTML = '🟥';
+            } else { rec.stop(); rec=null; document.getElementById('mic-btn').innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>'; }
         }
 
         // --- PERFIL ---
         function updateMeUI() {
-            const pic = me.avatar || `https://ui-avatars.com/api/?name=${me.username}`;
+            const pic = me.avatar || `https://ui-avatars.com/api/?name=${me.username}&background=random`;
             document.getElementById('settings_avatar').src = pic;
             document.getElementById('my_status_pic').src = pic;
             document.getElementById('settings_name').innerText = me.username;
@@ -333,7 +397,7 @@
         }
         async function loadStatus() {
             const d=await fetch('/get-status').then(r=>r.json());
-            document.getElementById('status-list').innerHTML=d.map(s=>`<div class="flex items-center gap-3 py-3 pr-4 border-b border-[#C6C6C8]"><div class="p-[2px] rounded-full border-2 border-blue-500"><img src="${s.avatar}" class="w-14 h-14 rounded-full object-cover"></div><div><h3 class="font-bold">${s.username}</h3><p class="text-xs text-gray-500">Novo Status</p></div></div>`).join('');
+            document.getElementById('status-list').innerHTML=d.map(s=>`<div class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E]"><div class="p-[2px] rounded-full border-2 border-[#FF3B30]"><img src="${s.avatar}" class="w-14 h-14 rounded-full object-cover"></div><div><h3 class="font-bold text-white">${s.username}</h3><p class="text-xs text-gray-500">Novo Status</p></div></div>`).join('');
         }
 
         // --- UTILS ---
@@ -343,8 +407,40 @@
             const r=await fetch('/user/'+u).then(x=>x.json());
             if(r.username){ document.getElementById('new-chat-modal').classList.add('hidden'); openChat(u); } else alert("Não achou");
         }
-        socket.on('new_msg', m => { if(active===m.s){addMsg(m);socket.emit('mark_read',{s:active,r:me.username});scrollToBottom();}else loadChats(); });
-        socket.on('msgs_read_update', d => { if(active===d.reader) document.querySelectorAll('.text-gray-400').forEach(e=>{e.classList.remove('text-gray-400');e.classList.add('text-blue-500')}); });
+        
+        // --- SOCKET EVENTOS ---
+        socket.on('new_msg', m => { 
+            if(active===m.s){
+                addMsg(m);
+                socket.emit('mark_read',{s:active,r:me.username});
+                scrollToBottom();
+            } else {
+                loadChats();
+            }
+        });
+
+        socket.on('msg_sent_ok', m => {
+            // Atualiza status se a mensagem for sua e estiver no chat aberto
+            if(active === m.r) {
+                const bubbles = document.querySelectorAll('.msg-me');
+                const lastBubble = bubbles[bubbles.length - 1];
+                if(lastBubble) {
+                   // Força atualização visual simples para o último balão (exemplo simplificado)
+                   // Em app real, usaria ID único por msg para atualizar DOM específico
+                   lastBubble.querySelector('.tick-icon').innerHTML = '✓✓'; // Recebido Servidor
+                }
+            }
+        });
+
+        socket.on('msgs_read_update', d => { 
+            if(active===d.reader) {
+                // Atualiza todos os ticks cinzas para vermelhos (lidos) na tela atual
+                document.querySelectorAll('.tick-sent').forEach(e => {
+                    e.classList.remove('tick-sent');
+                    e.classList.add('tick-read');
+                });
+            }
+        });
     </script>
 </body>
 </html>
