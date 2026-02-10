@@ -3,25 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Chat iOS Dark</title>
+    <title>Chat iOS Dark Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
         /* --- CONFIGURAÇÕES DARK MODE & RED THEME --- */
         :root {
             --bg-app: #000000;
-            --bg-secondary: #1C1C1E; /* Cinza iOS Dark */
+            --bg-secondary: #1C1C1E;
             --bg-header: #161616;
             --text-primary: #FFFFFF;
             --text-secondary: #8E8E93;
             --separator: #2C2C2E;
-            --accent-color: #FF3B30; /* Vermelho iOS */
-            
-            /* Cores dos Balões */
+            --accent-color: #0A84FF; /* Azul iOS Padrão ou #FF3B30 para Red */
             --bubble-me: #3E1010; /* Vermelho Escuro Sutil */
-            --bubble-them: #2C2C2E; /* Cinza Escuro */
-            
-            /* Background do Chat (Imagem escura) */
+            --bubble-them: #2C2C2E;
             --chat-bg-color: #0b141a;
         }
 
@@ -64,34 +60,56 @@
             border-radius: 18px 18px 18px 4px; margin-left: 10px; 
         }
         
-        /* CLASSES UTILITÁRIAS CUSTOMIZADAS */
-        .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
-        
-        .active-tab svg { color: var(--accent-color); }
-        .active-tab span { color: var(--accent-color); }
-        
-        /* Inputs Dark Mode */
-        .input-dark {
-            background-color: #2C2C2E;
-            color: white;
-            border: none;
+        /* STATUS VIEWER */
+        #story-viewer {
+            position: fixed; inset: 0; z-index: 200; background: black;
+            display: flex; flex-direction: column;
+            transform: scale(0.9); opacity: 0; pointer-events: none;
+            transition: all 0.2s ease-out;
         }
-        .input-dark::placeholder { color: #8E8E93; }
+        #story-viewer.active { transform: scale(1); opacity: 1; pointer-events: all; }
+        
+        .story-progress-container {
+            display: flex; gap: 4px; padding: 10px 4px; 
+            position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+        }
+        .story-progress-bar {
+            height: 2px; flex: 1; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden;
+        }
+        .story-progress-fill {
+            height: 100%; background: white; width: 0%;
+        }
+        
+        /* STATUS RING */
+        .status-ring { padding: 2px; border-radius: 50%; border: 2px solid #0A84FF; }
+        .status-ring-viewed { border-color: #545458; }
 
-        /* Scrollbar fina para dark mode */
+        /* UTILITÁRIOS */
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+        .active-tab svg { color: #FF3B30; }
+        .active-tab span { color: #FF3B30; }
+        .input-dark { background-color: #2C2C2E; color: white; border: none; }
+        .input-dark::placeholder { color: #8E8E93; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
-
-        /* Animação suave nos Ticks */
+        
         .tick-icon { font-size: 11px; margin-left: 3px; font-weight: bold; letter-spacing: -1px; }
-        .tick-read { color: var(--accent-color); }
+        .tick-read { color: #34B7F1; /* Azul WhatsApp ou mantem tema */ }
         .tick-sent { color: #8E8E93; }
+
+        /* MODAL DE CRIAÇÃO DE STATUS */
+        #status-creator {
+            position: fixed; inset: 0; z-index: 150; background: #000;
+            display: flex; flex-direction: column;
+            transform: translateY(100%); transition: transform 0.3s;
+        }
+        #status-creator.open { transform: translateY(0); }
     </style>
 </head>
 <body>
 
     <div id="login-screen" class="fixed inset-0 flex flex-col items-center justify-center p-8">
-        <h1 class="text-3xl font-bold mb-8 text-[#FF3B30]">WhatsApp Clone</h1>
+        <h1 class="text-3xl font-bold mb-8 text-[#FF3B30]">WhatsApp Pro</h1>
         <input id="u_auth" placeholder="Usuário" class="w-full input-dark p-4 rounded-xl mb-3 outline-none focus:ring-1 focus:ring-red-500">
         <input id="p_auth" type="password" placeholder="Senha" class="w-full input-dark p-4 rounded-xl mb-6 outline-none focus:ring-1 focus:ring-red-500">
         <button onclick="auth('login')" class="w-full bg-[#FF3B30] active:bg-red-700 text-white py-4 rounded-xl font-bold transition">Entrar</button>
@@ -102,7 +120,7 @@
         
         <header class="bg-[#161616] border-b border-[#2C2C2E] pt-safe pb-3 px-4 flex justify-between items-center shrink-0 min-h-[60px]">
             <button class="text-[#FF3B30] text-[17px]">Editar</button>
-            <h1 class="font-bold text-[18px] text-white">Conversas</h1>
+            <h1 id="header-title" class="font-bold text-[18px] text-white">Conversas</h1>
             <button onclick="document.getElementById('new-chat-modal').classList.remove('hidden')" class="text-[#FF3B30]">
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
             </button>
@@ -119,12 +137,26 @@
 
             <div id="tab-status" class="hidden w-full min-h-full pb-20">
                 <h1 class="text-3xl font-bold px-4 py-4 text-white">Status</h1>
-                <div class="bg-[#1C1C1E] px-4 py-3 flex items-center gap-3 border-y border-[#2C2C2E]" onclick="document.getElementById('status_file').click()">
-                     <img id="my_status_pic" class="w-14 h-14 rounded-full bg-gray-700 object-cover">
-                     <div><h3 class="font-bold text-white">Meu Status</h3><p class="text-gray-400 text-sm">Adicionar ao meu status</p></div>
-                     <input type="file" id="status_file" hidden accept="image/*" onchange="postStatus(event)">
+                
+                <div class="bg-[#1C1C1E] px-4 py-3 flex items-center gap-3 border-y border-[#2C2C2E] relative">
+                     <div class="relative">
+                        <img id="my_status_pic" class="w-14 h-14 rounded-full bg-gray-700 object-cover">
+                        <button onclick="openStatusCreator()" class="absolute bottom-0 right-0 bg-[#0A84FF] rounded-full p-1 border-2 border-[#1C1C1E] text-white">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4"/></svg>
+                        </button>
+                     </div>
+                     <div class="flex-1 cursor-pointer" onclick="checkMyStatus()">
+                         <h3 class="font-bold text-white">Meu Status</h3>
+                         <p class="text-gray-400 text-sm">Toque para ver, + para adicionar</p>
+                     </div>
+                     <div class="flex gap-4 text-[#0A84FF]">
+                        <button onclick="openStatusCreator('text')" class="bg-[#2C2C2E] p-2 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg></button>
+                        <button onclick="openStatusCreator('media')" class="bg-[#2C2C2E] p-2 rounded-full"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg></button>
+                     </div>
                 </div>
-                <div id="status-list" class="mt-6 bg-[#1C1C1E] pl-4 border-t border-[#2C2C2E]"></div>
+                
+                <h4 class="text-gray-500 text-xs font-bold px-4 mt-6 mb-2 uppercase">Atualizações Recentes</h4>
+                <div id="status-list" class="bg-[#1C1C1E] pl-4 border-t border-b border-[#2C2C2E]"></div>
             </div>
 
             <div id="tab-settings" class="hidden w-full min-h-full pb-20">
@@ -147,7 +179,7 @@
 
         <nav class="bg-[#161616]/95 backdrop-blur border-t border-[#2C2C2E] h-[83px] flex justify-around pt-2 pb-safe shrink-0 z-50">
             <button onclick="switchTab('status')" id="btn-status" class="flex flex-col items-center gap-1 w-16 text-[#8E8E93]">
-                <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3"/></svg>
                 <span class="text-[10px] font-medium">Status</span>
             </button>
             <button onclick="switchTab('chats')" id="btn-chats" class="active-tab flex flex-col items-center gap-1 w-16 text-[#8E8E93]">
@@ -155,7 +187,7 @@
                 <span class="text-[10px] font-medium">Conversas</span>
             </button>
             <button onclick="switchTab('settings')" id="btn-settings" class="flex flex-col items-center gap-1 w-16 text-[#8E8E93]">
-                <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.04.17 0 .4.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.04-.22 0-.45-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+                <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
                 <span class="text-[10px] font-medium">Ajustes</span>
             </button>
         </nav>
@@ -171,7 +203,7 @@
                 <img id="chat_avatar" class="w-9 h-9 rounded-full bg-gray-700 object-cover border border-[#2C2C2E]">
                 <div class="flex flex-col justify-center">
                     <h3 id="chat_name" class="font-semibold text-[16px] leading-tight text-white">--</h3>
-                    <span class="text-[11px] text-gray-400 leading-tight">Toque para dados</span>
+                    <span id="chat_status" class="text-[11px] text-gray-400 leading-tight">Toque para dados</span>
                 </div>
             </div>
         </header>
@@ -180,7 +212,7 @@
 
         <div class="bg-[#161616] border-t border-[#2C2C2E] px-2 py-2 flex items-end gap-2 pb-safe shrink-0">
             <button onclick="document.getElementById('media_input').click()" class="text-[#FF3B30] p-2 mb-1">
-                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
             </button>
             <input type="file" id="media_input" hidden accept="image/*,video/*" onchange="sendMedia(event)">
 
@@ -190,6 +222,72 @@
             
             <button onclick="sendText()" id="send-btn" class="text-[#FF3B30] font-bold p-2 mb-1 hidden">Enviar</button>
             <button onclick="toggleMic()" id="mic-btn" class="text-[#FF3B30] p-2 mb-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg></button>
+        </div>
+    </div>
+
+    <div id="story-viewer">
+        <div class="story-progress-container" id="story-bars"></div>
+        
+        <div class="flex items-center gap-3 p-4 z-20 mt-4">
+            <button onclick="closeStory()" class="text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
+            <img id="sv-avatar" class="w-10 h-10 rounded-full border border-white/20 bg-gray-700">
+            <div>
+                <h3 id="sv-username" class="font-bold text-white text-sm shadow-black drop-shadow-md">User</h3>
+                <span id="sv-time" class="text-xs text-white/80">Há 20 min</span>
+            </div>
+        </div>
+
+        <div id="sv-content" class="absolute inset-0 flex items-center justify-center bg-black">
+            </div>
+        
+        <div id="sv-caption-container" class="absolute bottom-16 left-0 right-0 p-4 text-center z-20">
+             <p id="sv-caption" class="text-white bg-black/50 p-2 rounded-lg inline-block text-lg"></p>
+        </div>
+
+        <div class="absolute inset-0 flex z-10">
+            <div class="w-1/3 h-full" onclick="prevStory()"></div>
+            <div class="w-2/3 h-full" onclick="nextStory()"></div>
+        </div>
+
+        <div id="sv-footer" class="absolute bottom-0 w-full p-4 pb-safe bg-black/40 backdrop-blur z-30 hidden flex justify-center">
+            <button onclick="showViewers()" class="flex flex-col items-center text-white">
+                <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                <span class="text-xs" id="sv-view-count">0 views</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="viewers-modal" class="fixed inset-0 z-[250] hidden bg-black/80 backdrop-blur-sm" onclick="this.classList.add('hidden')">
+        <div class="absolute inset-x-0 bottom-0 bg-[#1C1C1E] rounded-t-2xl max-h-[60%] overflow-y-auto p-4 pb-safe" onclick="event.stopPropagation()">
+            <h3 class="text-white font-bold text-lg mb-4 text-center">Visualizado por</h3>
+            <div id="viewers-list" class="space-y-3"></div>
+        </div>
+    </div>
+
+    <div id="status-creator">
+        <div class="flex justify-between items-center p-4 pt-safe">
+            <button onclick="closeStatusCreator()" class="text-white text-lg">Cancelar</button>
+            <button onclick="submitStatus()" class="text-[#0A84FF] font-bold text-lg">Enviar</button>
+        </div>
+        
+        <div class="flex-1 relative flex flex-col justify-center items-center" id="st-preview-area">
+            <textarea id="st-text-input" class="hidden w-full h-full bg-transparent text-white text-4xl text-center p-8 outline-none resize-none flex items-center justify-center font-bold" placeholder="Digite seu status..."></textarea>
+            <img id="st-img-preview" class="hidden max-h-full max-w-full object-contain">
+            <video id="st-video-preview" class="hidden max-h-full max-w-full" controls></video>
+        </div>
+
+        <div class="p-4 pb-safe bg-[#1C1C1E] w-full">
+            <input id="st-caption" class="w-full bg-[#2C2C2E] text-white p-3 rounded-xl mb-4" placeholder="Adicione uma legenda...">
+            
+            <div id="st-controls-text" class="hidden flex justify-center gap-4 mb-4">
+                <div onclick="setBg('#ff0055')" class="w-8 h-8 rounded-full bg-[#ff0055] border-2 border-white cursor-pointer"></div>
+                <div onclick="setBg('#0099ff')" class="w-8 h-8 rounded-full bg-[#0099ff] border-2 border-white cursor-pointer"></div>
+                <div onclick="setBg('#6600cc')" class="w-8 h-8 rounded-full bg-[#6600cc] border-2 border-white cursor-pointer"></div>
+                <div onclick="setBg('#00cc66')" class="w-8 h-8 rounded-full bg-[#00cc66] border-2 border-white cursor-pointer"></div>
+                <div onclick="setBg('#ff9900')" class="w-8 h-8 rounded-full bg-[#ff9900] border-2 border-white cursor-pointer"></div>
+            </div>
+            
+            <input type="file" id="st-file-input" hidden accept="image/*,video/*" onchange="handleStatusFile(event)">
         </div>
     </div>
 
@@ -216,6 +314,13 @@
     <script>
         const socket = io();
         let me = null, active = null, rec = null, chunks = [];
+        
+        // --- LOGICA DE STATUS ---
+        let currentStories = {}; // { username: [story1, story2] }
+        let currentViewerUser = null;
+        let currentStoryIndex = 0;
+        let storyTimer = null;
+        let statusDraft = { type: 'text', content: '', caption: '', bg_color: '#ff0055' };
 
         // --- AUTH ---
         window.onload = () => {
@@ -238,7 +343,7 @@
         }
         function logout() { localStorage.removeItem('whats_v4'); location.reload(); }
 
-        // --- UI ---
+        // --- UI GERAL ---
         function switchTab(t) {
             ['chats','status','settings'].forEach(x => {
                 document.getElementById('tab-'+x).classList.add('hidden');
@@ -248,6 +353,8 @@
             document.getElementById('tab-'+t).classList.remove('hidden');
             document.getElementById('btn-'+t).classList.add('active-tab');
             document.getElementById('btn-'+t).classList.remove('text-[#8E8E93]');
+            document.getElementById('header-title').innerText = t==='chats'?'Conversas':(t==='status'?'Status':'Ajustes');
+            
             if(t==='chats') loadChats();
             if(t==='status') loadStatus();
         }
@@ -255,13 +362,21 @@
         // --- CHAT LOGIC ---
         async function openChat(u) {
             active = u;
-            const ui = await fetch('/user/'+u).then(r=>r.json());
             document.getElementById('chat_name').innerText = u;
-            document.getElementById('chat_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
-            document.getElementById('info_name').innerText = u;
-            document.getElementById('info_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
-            document.getElementById('info_bio').innerText = ui.bio || "Sem recado";
+            document.getElementById('chat_status').innerText = 'Carregando...'; 
             
+            // Busca info inicial do usuário
+            updatePresenceUI(u);
+
+            document.getElementById('chat_avatar').src = `https://ui-avatars.com/api/?name=${u}&background=random`;
+            // Fetch detalhes completos para modal
+            fetch('/user/'+u).then(r=>r.json()).then(ui => {
+                 document.getElementById('chat_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
+                 document.getElementById('info_name').innerText = u;
+                 document.getElementById('info_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
+                 document.getElementById('info_bio').innerText = ui.bio || "Sem recado";
+            });
+
             document.getElementById('chat-room').classList.add('chat-open');
             
             const msgs = await fetch(`/messages/${me.username}/${active}`).then(r=>r.json());
@@ -269,6 +384,27 @@
             msgs.forEach(addMsg);
             socket.emit('mark_read', {s:active, r:me.username});
             scrollToBottom();
+        }
+
+        function updatePresenceUI(username) {
+            fetch('/user/' + username).then(r=>r.json()).then(u => {
+                const stDiv = document.getElementById('chat_status');
+                if (u.is_online) {
+                    stDiv.innerText = 'Online';
+                    stDiv.className = 'text-[12px] text-[#0A84FF] font-medium leading-tight';
+                } else {
+                    stDiv.className = 'text-[11px] text-gray-400 leading-tight';
+                    if(u.last_seen) {
+                        const d = new Date(u.last_seen); // Server sends local string, convert to object
+                        // Format: "Visto por último hoje às 14:30"
+                        const time = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                        const day = d.toLocaleDateString() === new Date().toLocaleDateString() ? 'hoje' : d.toLocaleDateString();
+                        stDiv.innerText = `Visto por último ${day} às ${time}`;
+                    } else {
+                        stDiv.innerText = 'Offline';
+                    }
+                }
+            });
         }
         
         function closeChat() {
@@ -281,16 +417,28 @@
             const d = await fetch('/chats/'+me.username).then(r=>r.json());
             document.getElementById('chat-list').innerHTML = d.map(c => `
                 <div onclick="openChat('${c.contact}')" class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E] cursor-pointer bg-[#161616] active:bg-[#2C2C2E] transition">
-                    <img src="${c.avatar||'https://ui-avatars.com/api/?name='+c.contact+'&background=random'}" class="w-14 h-14 rounded-full bg-gray-700 object-cover shrink-0">
+                    <div class="relative">
+                        <img src="${c.avatar||'https://ui-avatars.com/api/?name='+c.contact+'&background=random'}" class="w-14 h-14 rounded-full bg-gray-700 object-cover shrink-0">
+                        ${c.is_online ? '<div class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-[#161616]"></div>' : ''}
+                    </div>
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-baseline">
                             <h3 class="font-bold text-[17px] text-white truncate">${c.contact}</h3>
-                            <span class="text-[14px] ${c.unread>0?'text-[#FF3B30] font-bold':'text-gray-500'}">${c.last_time||''}</span>
+                            <span class="text-[14px] ${c.unread>0?'text-[#0A84FF] font-bold':'text-gray-500'}">${c.last_time||''}</span>
                         </div>
-                        <p class="text-[15px] text-gray-400 truncate h-5">${c.last_type==='image'?'📷 Foto':(c.last_msg||'')}</p>
+                        <p class="text-[15px] text-gray-400 truncate h-5 flex items-center gap-1">
+                            ${c.last_sender === me.username ? getTickIcon(c.last_status) : ''}
+                            ${c.last_type==='image'?'📷 Foto':(c.last_type==='video'?'🎥 Vídeo':(c.last_msg||''))}
+                        </p>
                     </div>
                 </div>
             `).join('');
+        }
+
+        function getTickIcon(status) {
+            if(status === 0) return '<span class="tick-icon tick-sent">✓</span>';
+            if(status === 1) return '<span class="tick-icon tick-sent">✓✓</span>';
+            return '<span class="tick-icon tick-read">✓✓</span>';
         }
 
         function addMsg(m) {
@@ -301,17 +449,11 @@
             else if(m.type==='video') body = `<video src="${m.c}" controls class="rounded-lg max-w-full border border-gray-600"></video>`;
             else if(m.type==='audio') body = `<audio src="${m.c}" controls class="h-10 w-48"></audio>`;
 
-            // Lógica dos Ticks (Sent, Delivered, Read)
             let ticks = '';
-            if(isMe) {
-                if(m.status === 0) ticks = '<span class="tick-icon tick-sent">✓</span>'; // Enviado (1 tick cinza)
-                else if(m.status === 1) ticks = '<span class="tick-icon tick-sent">✓✓</span>'; // Recebido (2 ticks cinza)
-                else if(m.status >= 2) ticks = '<span class="tick-icon tick-read">✓✓</span>'; // Lido (2 ticks vermelho)
-            }
+            if(isMe) ticks = getTickIcon(m.status);
 
             const div = document.createElement('div');
             div.className = `msg-bubble flex flex-col ${isMe ? 'msg-me' : 'msg-them'}`;
-            // Ajustado cor do horário para garantir contraste
             div.innerHTML = `${body}<div class="text-[10px] text-gray-300 self-end mt-1 flex items-center gap-1 min-w-[50px] justify-end relative -mb-1">${m.f_time||''} ${ticks}</div>`;
             document.getElementById('msg-container').appendChild(div);
         }
@@ -329,7 +471,7 @@
             if(!txt) return;
             const data = { s:me.username, r:active, c:txt, type:'text' };
             socket.emit('send_msg', data);
-            addMsg({...data, f_time:'Agora', status:0}); // Status 0 = Relógio/Enviando (Simulado)
+            addMsg({...data, f_time:'Agora', status:0}); 
             scrollToBottom();
             i.value = '';
             document.getElementById('send-btn').classList.add('hidden');
@@ -367,6 +509,273 @@
             } else { rec.stop(); rec=null; document.getElementById('mic-btn').innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>'; }
         }
 
+        // --- STATUS SYSTEM (COMPLEX) ---
+        
+        // 1. Criação
+        function openStatusCreator(mode) {
+            // Reset
+            statusDraft = { type: 'text', content: '', caption: '', bg_color: '#ff0055' };
+            document.getElementById('st-text-input').value = '';
+            document.getElementById('st-caption').value = '';
+            document.getElementById('st-img-preview').src = '';
+            document.getElementById('st-video-preview').src = '';
+            document.getElementById('st-file-input').value = '';
+
+            document.getElementById('status-creator').classList.add('open');
+            
+            if(mode === 'text') {
+                document.getElementById('st-text-input').classList.remove('hidden');
+                document.getElementById('st-img-preview').classList.add('hidden');
+                document.getElementById('st-video-preview').classList.add('hidden');
+                document.getElementById('st-controls-text').classList.remove('hidden');
+                document.getElementById('st-preview-area').style.backgroundColor = statusDraft.bg_color;
+            } else {
+                // Click file input
+                document.getElementById('st-file-input').click();
+            }
+        }
+        
+        function handleStatusFile(e) {
+            const f = e.target.files[0];
+            if(!f) { closeStatusCreator(); return; }
+            
+            const r = new FileReader();
+            r.onload = () => {
+                statusDraft.content = r.result;
+                statusDraft.type = f.type.startsWith('video') ? 'video' : 'image';
+                
+                document.getElementById('st-text-input').classList.add('hidden');
+                document.getElementById('st-controls-text').classList.add('hidden');
+                document.getElementById('st-preview-area').style.backgroundColor = 'black';
+
+                if(statusDraft.type === 'image') {
+                    const img = document.getElementById('st-img-preview');
+                    img.src = r.result;
+                    img.classList.remove('hidden');
+                } else {
+                    const vid = document.getElementById('st-video-preview');
+                    vid.src = r.result;
+                    vid.classList.remove('hidden');
+                }
+            };
+            r.readAsDataURL(f);
+        }
+
+        function setBg(color) {
+            statusDraft.bg_color = color;
+            document.getElementById('st-preview-area').style.backgroundColor = color;
+        }
+
+        function closeStatusCreator() {
+            document.getElementById('status-creator').classList.remove('open');
+        }
+
+        async function submitStatus() {
+            if(statusDraft.type === 'text') {
+                statusDraft.content = document.getElementById('st-text-input').value;
+                if(!statusDraft.content) return;
+            }
+            statusDraft.caption = document.getElementById('st-caption').value;
+            statusDraft.username = me.username;
+
+            await fetch('/post-status', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(statusDraft)
+            });
+            
+            closeStatusCreator();
+            loadStatus();
+        }
+
+        // 2. Carregamento e Agrupamento
+        async function loadStatus() {
+            const raw = await fetch('/get-status').then(r=>r.json());
+            currentStories = {};
+            
+            // Agrupar por user
+            raw.forEach(s => {
+                if(!currentStories[s.username]) currentStories[s.username] = [];
+                currentStories[s.username].push(s);
+            });
+
+            const list = document.getElementById('status-list');
+            list.innerHTML = '';
+            
+            // Renderiza outros usuários
+            Object.keys(currentStories).forEach(u => {
+                if(u === me.username) return; // Meu status já tem lugar fixo
+                
+                const stories = currentStories[u];
+                const lastStory = stories[stories.length - 1];
+                const allViewed = stories.every(s => s.viewers.includes(me.username));
+                const ringClass = allViewed ? 'status-ring-viewed' : '';
+                
+                const html = `
+                <div onclick="openStoryViewer('${u}')" class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E] cursor-pointer active:bg-[#2C2C2E]">
+                    <div class="p-[2px] rounded-full status-ring ${ringClass} border-2 border-[#0A84FF]">
+                        <img src="${lastStory.avatar || 'https://ui-avatars.com/api/?name='+u}" class="w-14 h-14 rounded-full object-cover">
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-white">${u}</h3>
+                        <p class="text-xs text-gray-500">${new Date(lastStory.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                    </div>
+                </div>`;
+                list.insertAdjacentHTML('beforeend', html);
+            });
+
+            // Atualiza anel do "Meu Status"
+            const mySt = currentStories[me.username];
+            const myRing = document.getElementById('my_status_pic').parentElement;
+            if(mySt && mySt.length > 0) {
+                myRing.className = 'p-[2px] rounded-full border-2 border-[#0A84FF] relative inline-block';
+            } else {
+                myRing.className = 'relative';
+            }
+        }
+        
+        function checkMyStatus() {
+            if(currentStories[me.username]) openStoryViewer(me.username);
+            else alert("Você não postou nada nas últimas 24h.");
+        }
+
+        // 3. Visualização (Viewer Completo)
+        function openStoryViewer(username) {
+            currentViewerUser = username;
+            currentStoryIndex = 0;
+            
+            // Pular para o primeiro não visto se não for eu
+            if(username !== me.username) {
+                const idx = currentStories[username].findIndex(s => !s.viewers.includes(me.username));
+                if(idx !== -1) currentStoryIndex = idx;
+            }
+            
+            renderStory();
+            document.getElementById('story-viewer').classList.add('active');
+        }
+
+        function renderStory() {
+            clearTimeout(storyTimer);
+            const userStories = currentStories[currentViewerUser];
+            if(!userStories || currentStoryIndex >= userStories.length) {
+                closeStory();
+                return;
+            }
+
+            const story = userStories[currentStoryIndex];
+            
+            // Header Info
+            document.getElementById('sv-username').innerText = currentViewerUser;
+            document.getElementById('sv-avatar').src = story.avatar || `https://ui-avatars.com/api/?name=${currentViewerUser}`;
+            document.getElementById('sv-time').innerText = new Date(story.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+            // Conteúdo
+            const container = document.getElementById('sv-content');
+            container.innerHTML = '';
+            
+            if(story.type === 'text') {
+                container.style.backgroundColor = story.bg_color;
+                container.innerHTML = `<h1 class="text-white text-3xl font-bold text-center px-6">${story.content}</h1>`;
+            } else {
+                container.style.backgroundColor = 'black';
+                if(story.type === 'video') {
+                    container.innerHTML = `<video src="${story.content}" autoplay class="max-w-full max-h-full"></video>`;
+                } else {
+                    container.innerHTML = `<img src="${story.content}" class="max-w-full max-h-full object-contain">`;
+                }
+            }
+
+            // Caption
+            const capBox = document.getElementById('sv-caption');
+            if(story.caption) {
+                capBox.innerText = story.caption;
+                capBox.style.display = 'inline-block';
+            } else {
+                capBox.style.display = 'none';
+            }
+
+            // Footer (Se for meu)
+            if(currentViewerUser === me.username) {
+                document.getElementById('sv-footer').classList.remove('hidden');
+                document.getElementById('sv-view-count').innerText = (story.viewers.length) + ' views';
+            } else {
+                document.getElementById('sv-footer').classList.add('hidden');
+                // Marcar como visto
+                socket.emit('view_status', { story_id: story.id, viewer: me.username, owner: currentViewerUser });
+            }
+
+            // Barra de Progresso
+            const barsContainer = document.getElementById('story-bars');
+            barsContainer.innerHTML = '';
+            userStories.forEach((_, idx) => {
+                const bar = document.createElement('div');
+                bar.className = 'story-progress-bar';
+                const fill = document.createElement('div');
+                fill.className = 'story-progress-fill';
+                
+                if(idx < currentStoryIndex) fill.style.width = '100%';
+                else if(idx === currentStoryIndex) {
+                    fill.style.width = '0%';
+                    fill.style.transition = 'width 5s linear';
+                    setTimeout(() => fill.style.width = '100%', 10);
+                }
+                
+                bar.appendChild(fill);
+                barsContainer.appendChild(bar);
+            });
+
+            // Timer
+            const duration = story.type === 'video' ? 10000 : 5000; // 5s img/txt, 10s video (simplificado)
+            storyTimer = setTimeout(nextStory, duration);
+        }
+
+        function nextStory() {
+            currentStoryIndex++;
+            renderStory();
+        }
+        function prevStory() {
+            if(currentStoryIndex > 0) {
+                currentStoryIndex--;
+                renderStory();
+            }
+        }
+        function closeStory() {
+            clearTimeout(storyTimer);
+            document.getElementById('story-viewer').classList.remove('active');
+            // Recarrega lista para atualizar anéis vistos
+            loadStatus();
+        }
+
+        // 4. Quem Viu
+        async function showViewers() {
+            const story = currentStories[me.username][currentStoryIndex];
+            const viewers = await fetch('/story-viewers/'+story.id).then(r=>r.json());
+            
+            const list = document.getElementById('viewers-list');
+            list.innerHTML = '';
+            
+            if(viewers.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center">Ninguém viu ainda.</p>';
+            } else {
+                viewers.forEach(v => {
+                    list.innerHTML += `
+                    <div class="flex items-center gap-3">
+                        <img src="https://ui-avatars.com/api/?name=${v}&background=random" class="w-10 h-10 rounded-full">
+                        <span class="text-white font-bold">${v}</span>
+                    </div>`;
+                });
+            }
+            document.getElementById('viewers-modal').classList.remove('hidden');
+        }
+
+        // --- UTILS ---
+        function scrollToBottom(){const c=document.getElementById('msg-container');c.scrollTop=c.scrollHeight;}
+        async function startChat(){
+            const u=document.getElementById('new-chat-input').value.trim();
+            const r=await fetch('/user/'+u).then(x=>x.json());
+            if(r.username){ document.getElementById('new-chat-modal').classList.add('hidden'); openChat(u); } else alert("Não achou");
+        }
+        
         // --- PERFIL ---
         function updateMeUI() {
             const pic = me.avatar || `https://ui-avatars.com/api/?name=${me.username}&background=random`;
@@ -390,24 +799,6 @@
             localStorage.setItem('whats_v4', JSON.stringify(me));
         }
 
-        // --- STATUS ---
-        async function postStatus(e) {
-            const f=e.target.files[0]; if(!f) return;
-            const r=new FileReader(); r.onload=async()=>{ await fetch('/post-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:me.username,content:r.result})}); loadStatus(); alert("Postado!"); }; r.readAsDataURL(f);
-        }
-        async function loadStatus() {
-            const d=await fetch('/get-status').then(r=>r.json());
-            document.getElementById('status-list').innerHTML=d.map(s=>`<div class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E]"><div class="p-[2px] rounded-full border-2 border-[#FF3B30]"><img src="${s.avatar}" class="w-14 h-14 rounded-full object-cover"></div><div><h3 class="font-bold text-white">${s.username}</h3><p class="text-xs text-gray-500">Novo Status</p></div></div>`).join('');
-        }
-
-        // --- UTILS ---
-        function scrollToBottom(){const c=document.getElementById('msg-container');c.scrollTop=c.scrollHeight;}
-        async function startChat(){
-            const u=document.getElementById('new-chat-input').value.trim();
-            const r=await fetch('/user/'+u).then(x=>x.json());
-            if(r.username){ document.getElementById('new-chat-modal').classList.add('hidden'); openChat(u); } else alert("Não achou");
-        }
-        
         // --- SOCKET EVENTOS ---
         socket.on('new_msg', m => { 
             if(active===m.s){
@@ -420,27 +811,47 @@
         });
 
         socket.on('msg_sent_ok', m => {
-            // Atualiza status se a mensagem for sua e estiver no chat aberto
             if(active === m.r) {
                 const bubbles = document.querySelectorAll('.msg-me');
                 const lastBubble = bubbles[bubbles.length - 1];
-                if(lastBubble) {
-                   // Força atualização visual simples para o último balão (exemplo simplificado)
-                   // Em app real, usaria ID único por msg para atualizar DOM específico
-                   lastBubble.querySelector('.tick-icon').innerHTML = '✓✓'; // Recebido Servidor
-                }
+                if(lastBubble) lastBubble.querySelector('.tick-icon').innerHTML = '✓✓';
             }
         });
 
         socket.on('msgs_read_update', d => { 
             if(active===d.reader) {
-                // Atualiza todos os ticks cinzas para vermelhos (lidos) na tela atual
                 document.querySelectorAll('.tick-sent').forEach(e => {
                     e.classList.remove('tick-sent');
                     e.classList.add('tick-read');
                 });
             }
         });
+
+        // Evento de Presença e Status
+        socket.on('user_status_change', data => {
+            // Se estiver no chat com essa pessoa, atualiza header
+            if(active === data.username) {
+                const stDiv = document.getElementById('chat_status');
+                if(data.status === 'online') {
+                    stDiv.innerText = 'Online';
+                    stDiv.className = 'text-[12px] text-[#0A84FF] font-medium leading-tight';
+                } else {
+                    stDiv.innerText = 'Visto por último hoje às ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    stDiv.className = 'text-[11px] text-gray-400 leading-tight';
+                }
+            }
+            // Atualiza bolinha verde na lista de chats
+            loadChats();
+        });
+
+        socket.on('status_viewed', data => {
+            // Se eu estiver vendo a lista de quem viu meu status, atualiza
+            if(active === null && !document.getElementById('viewers-modal').classList.contains('hidden')) {
+                // Apenas um reload simples para MVP
+                showViewers(); 
+            }
+        });
+
     </script>
 </body>
 </html>
