@@ -81,7 +81,6 @@ app.get('/api/user/:username', (req, res) => {
     });
 });
 
-// Busca de usuários para iniciar conversa
 app.get('/api/search/:query', (req, res) => {
     const q = `%${req.params.query}%`;
     db.all("SELECT username, avatar FROM users WHERE username LIKE ? LIMIT 10", [q], (err, rows) => {
@@ -106,7 +105,6 @@ app.get('/api/chats/:username', (req, res) => {
     db.all(q, [u, u, u, u, u], (err, rows) => {
         if(err) return res.json([]);
         
-        // Preenche avatares
         const promises = rows.map(r => new Promise(resolve => {
             db.get("SELECT avatar FROM users WHERE username = ?", [r.contact], (e, uRow) => {
                 r.avatar = uRow ? uRow.avatar : null;
@@ -136,9 +134,6 @@ app.post('/api/story', (req, res) => {
 });
 
 app.get('/api/stories/:username', (req, res) => {
-    // Pega stories das ultimas 24h de TODOS (já que removemos amizade, vê de geral ou filtre se quiser)
-    // Para simplificar "Direct Chat", vou mostrar stories de quem você já conversou ou de todos.
-    // Vou deixar TODOS por enquanto para facilitar testes, ou mude a query para filtrar.
     db.all(`
         SELECT s.*, u.avatar 
         FROM stories s 
@@ -184,7 +179,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('mark_read', (data) => {
-        const { s, r } = data; // s = sender (o outro), r = receiver (eu, que li)
+        const { s, r } = data;
         db.run("UPDATE messages SET status = 2 WHERE s = ? AND r = ?", [s, r], () => {
              if(onlineUsers[s]) io.to(onlineUsers[s]).emit('msgs_read_update', { by: r });
         });
@@ -192,7 +187,7 @@ io.on('connection', (socket) => {
 
     socket.on('delete_chat', (data) => {
         const { me, partner } = data;
-        db.run("DELETE FROM messages WHERE (s=? AND r=?) OR (s=? AND r=?)\", [me, partner, partner, me]);
+        db.run("DELETE FROM messages WHERE (s=? AND r=?) OR (s=? AND r=?)", [me, partner, partner, me]);
     });
 
     socket.on('get_status_detailed', (targetUser) => {
