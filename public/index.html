@@ -3,78 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>WhatsApp iOS</title>
+    <title>WhatsApp Black</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* CONFIGURAÇÕES GERAIS E iOS FEEL */
+        /* --- CONFIGURAÇÃO TEMA BLACK & RED --- */
         :root { 
-            --bg-app: #F2F2F7; 
-            --bubble-me: #E1FFC7; 
-            --bubble-them: #FFFFFF; 
-            --blue-ios: #007AFF;
+            --bg-app: #000000; 
+            --bg-header: #1C1C1E;
+            --bg-item: #1C1C1E;
+            --accent-color: #FF3B30; /* Vermelho iOS */
+            --text-primary: #FFFFFF;
+            --text-secondary: #8E8E93;
+            --bubble-me: #3E1010; /* Vermelho escuro para minhas msgs */
+            --bubble-them: #2C2C2E; /* Cinza para eles */
+            --separator: #38383A;
         }
-        body, html { height: 100%; width: 100%; overflow: hidden; background: var(--bg-app); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
-        
-        /* UTILITÁRIOS */
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
 
-        /* ANIMAÇÕES DE TELA */
+        body, html { height: 100%; width: 100%; overflow: hidden; background: var(--bg-app); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        /* Utilitários */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        .pt-safe { padding-top: env(safe-area-inset-top); }
+
+        /* Transições de Tela (Slide iOS) */
         .screen {
             position: absolute; inset: 0; background: var(--bg-app);
-            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+            transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
             display: flex; flex-direction: column; z-index: 10;
         }
         .screen-hidden { transform: translateX(100%); z-index: 20; }
         .screen-active { transform: translateX(0); }
         
-        /* CHAT BACKGROUND */
+        /* Chat Background Dark */
         #chat-room { 
-            background-color: #E5DDD5; 
+            background-color: #0b0b0b; 
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-blend-mode: overlay; /* Deixa o background escuro */
             z-index: 50;
         }
 
-        /* BALÕES DE MENSAGEM */
-        .msg-row { display: flex; width: 100%; margin-bottom: 2px; }
+        /* Balões */
+        .msg-row { display: flex; width: 100%; margin-bottom: 2px; padding: 0 10px; }
         .msg-bubble { 
             max-width: 75%; padding: 6px 10px; font-size: 16px; 
-            border-radius: 8px; box-shadow: 0 1px 1px rgba(0,0,0,0.1); 
-            position: relative; line-height: 1.3;
+            border-radius: 8px; position: relative; line-height: 1.3;
         }
         .msg-me { justify-content: flex-end; }
-        .msg-me .msg-bubble { background: var(--bubble-me); border-radius: 18px 18px 4px 18px; margin-right: 12px; }
+        .msg-me .msg-bubble { background: var(--bubble-me); color: white; border-radius: 18px 18px 4px 18px; }
         .msg-them { justify-content: flex-start; }
-        .msg-them .msg-bubble { background: var(--bubble-them); border-radius: 18px 18px 18px 4px; margin-left: 12px; }
+        .msg-them .msg-bubble { background: var(--bubble-them); color: white; border-radius: 18px 18px 18px 4px; }
         
-        .msg-meta { font-size: 11px; color: rgba(0,0,0,0.45); display: flex; justify-content: flex-end; margin-top: 2px; gap: 4px; align-items: center; }
+        .msg-meta { font-size: 11px; color: rgba(255,255,255,0.5); display: flex; justify-content: flex-end; margin-top: 4px; gap: 4px; align-items: center; }
         
-        /* TABS */
-        .nav-item { color: #8E8E93; transition: color 0.2s; }
-        .nav-item.active { color: var(--blue-ios); }
-
-        /* LOADING */
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--blue-ios); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Navegação */
+        .nav-item { color: #555; transition: color 0.2s; }
+        .nav-item.active { color: var(--accent-color); }
+        
+        /* Inputs Customizados */
+        .input-dark {
+            background: #2C2C2E; color: white; border: none; outline: none;
+        }
+        .search-bar { background: #1C1C1E; }
     </style>
 </head>
 <body>
 
-    <div id="login-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center p-8">
-        <div class="w-24 h-24 bg-[#25D366] rounded-2xl flex items-center justify-center mb-6 shadow-lg">
-            <i class="fa-brands fa-whatsapp text-white text-5xl"></i>
+    <div id="login-screen" class="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center p-8">
+        <div class="w-24 h-24 rounded-2xl flex items-center justify-center mb-6 border-2 border-[#FF3B30]">
+            <i class="fa-brands fa-whatsapp text-[#FF3B30] text-5xl"></i>
         </div>
-        <h1 class="text-2xl font-bold mb-8 text-gray-800">WhatsApp Clone</h1>
+        <h1 class="text-2xl font-bold mb-8 text-white">Login <span class="text-[#FF3B30]">Black</span></h1>
         
         <div class="w-full max-w-sm space-y-4">
-            <input id="u_auth" type="text" placeholder="Nome de usuário" class="w-full bg-gray-100 p-4 rounded-xl outline-none border border-transparent focus:border-blue-500 transition-all" autocomplete="off">
-            <input id="p_auth" type="password" placeholder="Senha" class="w-full bg-gray-100 p-4 rounded-xl outline-none border border-transparent focus:border-blue-500 transition-all">
+            <input id="u_auth" type="text" placeholder="Usuário" class="w-full bg-[#1C1C1E] text-white p-4 rounded-xl outline-none focus:ring-1 focus:ring-red-500">
+            <input id="p_auth" type="password" placeholder="Senha" class="w-full bg-[#1C1C1E] text-white p-4 rounded-xl outline-none focus:ring-1 focus:ring-red-500">
             
-            <button onclick="handleAuth('login')" class="w-full bg-[#007AFF] active:bg-[#005ecb] text-white py-4 rounded-xl font-bold text-lg transition-colors shadow-md">Entrar</button>
-            <button onclick="handleAuth('register')" class="w-full text-[#007AFF] font-medium py-2">Criar nova conta</button>
+            <button onclick="handleAuth('login')" class="w-full bg-[#FF3B30] active:bg-[#d63026] text-white py-4 rounded-xl font-bold text-lg">Entrar</button>
+            <button onclick="handleAuth('register')" class="w-full text-[#FF3B30] font-medium py-2">Criar conta</button>
         </div>
         <p id="auth-error" class="text-red-500 mt-4 text-sm font-medium hidden"></p>
     </div>
@@ -82,131 +90,130 @@
     <div id="main-app" class="hidden h-full w-full relative">
         
         <div id="tab-chats" class="screen flex flex-col">
-            <header class="bg-[#F6F6F6]/95 backdrop-blur border-b border-[#C6C6C8] pt-safe-top px-4 pb-2 flex justify-between items-end h-[100px] shrink-0 sticky top-0 z-20">
-                <button class="text-[#007AFF] text-[17px] font-medium">Editar</button>
-                <h1 class="font-bold text-[17px]">Conversas</h1>
-                <button onclick="openModal('new-chat-modal')" class="text-[#007AFF]">
+            <header class="bg-[#1C1C1E] border-b border-[#38383A] pt-12 px-4 pb-3 flex justify-between items-end h-[100px] shrink-0 sticky top-0 z-20">
+                <button class="text-[#FF3B30] text-[17px] font-medium">Editar</button>
+                <h1 class="font-bold text-[20px] text-white">Conversas</h1>
+                <button onclick="openModal('new-chat-modal')" class="text-[#FF3B30]">
                     <i class="fa-regular fa-pen-to-square text-xl"></i>
                 </button>
             </header>
 
-            <div class="flex-1 overflow-y-auto bg-white">
-                <div class="px-4 py-2 bg-[#F6F6F6]">
-                    <div class="bg-[#E3E3E8] rounded-lg px-3 py-2 flex items-center gap-2">
-                        <i class="fa-solid fa-magnifying-glass text-gray-400"></i>
-                        <input placeholder="Pesquisar" class="bg-transparent w-full outline-none text-sm placeholder-gray-500">
+            <div class="flex-1 overflow-y-auto bg-black">
+                <div class="px-4 py-2">
+                    <div class="bg-[#1C1C1E] rounded-lg px-3 py-2 flex items-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass text-gray-500"></i>
+                        <input placeholder="Pesquisar" class="bg-transparent w-full outline-none text-sm text-white placeholder-gray-500">
                     </div>
                 </div>
 
-                <div id="friend-requests-bar" class="hidden px-4 py-3 border-b border-gray-100 cursor-pointer bg-blue-50" onclick="openModal('requests-modal')">
-                    <div class="flex justify-between items-center text-[#007AFF]">
+                <div id="friend-requests-bar" class="hidden px-4 py-3 border-b border-[#38383A] cursor-pointer bg-[#110505]" onclick="openModal('requests-modal')">
+                    <div class="flex justify-between items-center text-[#FF3B30]">
                         <span class="font-medium">Solicitações de Amizade</span>
-                        <span id="req-count" class="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                        <span id="req-count" class="bg-[#FF3B30] text-white text-xs font-bold px-2 py-0.5 rounded-full">0</span>
                     </div>
                 </div>
 
-                <div id="chat-list" class="pl-4">
-                    </div>
+                <div id="chat-list" class="pl-4 divide-y divide-[#38383A]"></div>
             </div>
         </div>
 
-        <div id="tab-status" class="screen screen-hidden bg-white">
-            <header class="bg-[#F6F6F6] border-b border-[#C6C6C8] pt-12 pb-3 px-4 h-[100px] flex items-end justify-center">
-                <h1 class="font-bold text-[17px]">Status</h1>
+        <div id="tab-status" class="screen screen-hidden bg-black">
+            <header class="bg-[#1C1C1E] border-b border-[#38383A] pt-12 pb-3 px-4 h-[100px] flex items-end justify-center">
+                <h1 class="font-bold text-[17px] text-white">Status</h1>
             </header>
             <div class="p-4">
-                <div class="flex items-center gap-4 mb-6 cursor-pointer" onclick="document.getElementById('status_file').click()">
+                <div class="flex items-center gap-4 mb-8 cursor-pointer relative" onclick="document.getElementById('status_file').click()">
                     <div class="relative">
-                        <img id="my_status_pic" class="w-14 h-14 rounded-full object-cover border border-gray-200">
-                        <div class="absolute bottom-0 right-0 bg-blue-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs border-2 border-white">+</div>
+                        <img id="my_status_pic" class="w-14 h-14 rounded-full object-cover border border-[#38383A]">
+                        <div class="absolute bottom-0 right-0 bg-[#FF3B30] text-white w-5 h-5 rounded-full flex items-center justify-center text-xs border-2 border-black">+</div>
                     </div>
                     <div>
-                        <h3 class="font-bold">Meu Status</h3>
+                        <h3 class="font-bold text-white">Meu Status</h3>
                         <p class="text-gray-500 text-sm">Adicionar ao meu status</p>
                     </div>
                     <input type="file" id="status_file" hidden accept="image/*" onchange="postStatus(event)">
                 </div>
-                <div class="text-xs font-bold text-gray-500 uppercase mb-2">Recentes</div>
-                <div id="status-list" class="space-y-4"></div>
+
+                <div class="text-xs font-bold text-gray-500 uppercase mb-4">Atualizações Recentes</div>
+                <div id="status-list" class="space-y-6"></div>
             </div>
         </div>
 
-        <div id="tab-settings" class="screen screen-hidden bg-[#F2F2F7]">
-            <header class="bg-[#F6F6F6] border-b border-[#C6C6C8] pt-12 pb-3 px-4 h-[100px] flex items-end justify-center">
-                <h1 class="font-bold text-[17px]">Ajustes</h1>
+        <div id="tab-settings" class="screen screen-hidden bg-black">
+            <header class="bg-[#1C1C1E] border-b border-[#38383A] pt-12 pb-3 px-4 h-[100px] flex items-end justify-center">
+                <h1 class="font-bold text-[17px] text-white">Ajustes</h1>
             </header>
             <div class="mt-8">
-                <div class="bg-white border-y border-[#C6C6C8] flex items-center p-4 gap-4" onclick="document.getElementById('avatar_file').click()">
-                    <img id="settings_avatar" class="w-16 h-16 rounded-full bg-gray-300 object-cover">
+                <div class="bg-[#1C1C1E] border-y border-[#38383A] flex items-center p-4 gap-4" onclick="document.getElementById('avatar_file').click()">
+                    <img id="settings_avatar" class="w-16 h-16 rounded-full bg-gray-700 object-cover">
                     <div class="flex-1">
-                        <h2 id="settings_name" class="text-xl font-semibold">User</h2>
-                        <p class="text-gray-500 text-sm">Toque para editar foto</p>
+                        <h2 id="settings_name" class="text-xl font-semibold text-white">User</h2>
+                        <p class="text-gray-500 text-sm">Toque para mudar foto</p>
                     </div>
                     <input type="file" id="avatar_file" hidden accept="image/*" onchange="updateProfilePic(event)">
                 </div>
                 
-                <div class="mt-8 bg-white border-y border-[#C6C6C8] px-4">
-                    <div class="py-3 border-b border-gray-100">
-                        <label class="text-xs text-blue-500 font-bold uppercase">Recado (Bio)</label>
-                        <input id="settings_bio" class="w-full mt-1 text-[17px] outline-none bg-transparent" onblur="saveBio(this.value)">
+                <div class="mt-8 bg-[#1C1C1E] border-y border-[#38383A] px-4">
+                    <div class="py-3">
+                        <label class="text-xs text-[#FF3B30] font-bold uppercase">Recado</label>
+                        <input id="settings_bio" class="w-full mt-1 text-[17px] outline-none bg-transparent text-white" onblur="saveBio(this.value)">
                     </div>
                 </div>
 
                 <div class="mt-8">
-                    <button onclick="logout()" class="w-full bg-white p-4 text-red-500 text-lg border-y border-[#C6C6C8] font-medium">Sair</button>
+                    <button onclick="logout()" class="w-full bg-[#1C1C1E] p-4 text-[#FF3B30] text-lg border-y border-[#38383A] font-medium">Sair</button>
                 </div>
             </div>
         </div>
 
-        <nav class="absolute bottom-0 w-full bg-[#F6F6F6]/95 backdrop-blur border-t border-[#C6C6C8] h-[83px] flex justify-around pt-2 pb-safe z-40">
+        <nav class="absolute bottom-0 w-full bg-[#1C1C1E]/95 backdrop-blur border-t border-[#38383A] h-[83px] flex justify-around pt-2 pb-safe z-40">
             <button onclick="switchTab('status')" id="btn-status" class="nav-item flex flex-col items-center gap-1 w-16">
-                <i class="fa-regular fa-circle-dot text-xl mb-0.5"></i>
+                <i class="fa-regular fa-circle-dot text-2xl mb-0.5"></i>
                 <span class="text-[10px] font-medium">Status</span>
             </button>
             <button onclick="switchTab('chats')" id="btn-chats" class="nav-item active flex flex-col items-center gap-1 w-16">
-                <i class="fa-brands fa-whatsapp text-xl mb-0.5"></i>
+                <i class="fa-brands fa-whatsapp text-2xl mb-0.5"></i>
                 <span class="text-[10px] font-medium">Conversas</span>
             </button>
             <button onclick="switchTab('settings')" id="btn-settings" class="nav-item flex flex-col items-center gap-1 w-16">
-                <i class="fa-solid fa-gear text-xl mb-0.5"></i>
+                <i class="fa-solid fa-gear text-2xl mb-0.5"></i>
                 <span class="text-[10px] font-medium">Ajustes</span>
             </button>
         </nav>
 
         <div id="chat-room" class="screen screen-hidden flex flex-col h-full">
-            <header class="bg-[#F6F6F6]/95 backdrop-blur border-b border-[#C6C6C8] pt-safe-top h-[100px] flex items-end px-2 pb-2 shrink-0 z-50 shadow-sm">
-                <button onclick="closeChat()" class="flex items-center text-[#007AFF] pr-2 pb-2 h-10 z-10">
+            <header class="bg-[#1C1C1E]/95 backdrop-blur border-b border-[#38383A] pt-safe-top h-[100px] flex items-end px-2 pb-2 shrink-0 z-50 shadow-sm">
+                <button onclick="closeChat()" class="flex items-center text-[#FF3B30] pr-2 pb-2 h-10 z-10">
                     <i class="fa-solid fa-chevron-left text-xl mr-1"></i>
                     <span class="text-[17px]">Voltar</span>
                 </button>
                 <div class="absolute inset-x-0 bottom-2 flex flex-col items-center justify-center cursor-pointer pointer-events-none">
                     <div class="flex flex-col items-center pointer-events-auto" onclick="openContactInfo()">
-                        <h3 id="chat_name" class="font-semibold text-[16px] leading-tight text-black">--</h3>
-                        <span id="chat_status" class="text-[12px] text-gray-500 leading-tight h-4">Offline</span>
+                        <h3 id="chat_name" class="font-semibold text-[16px] leading-tight text-white">--</h3>
+                        <span id="chat_status" class="text-[12px] text-gray-400 leading-tight h-4">Offline</span>
                     </div>
                 </div>
                 <div class="flex-1 flex justify-end pb-2 pr-2">
-                    <img id="chat_avatar_header" class="w-9 h-9 rounded-full bg-gray-300 object-cover border border-gray-200">
+                    <img id="chat_avatar_header" class="w-9 h-9 rounded-full bg-gray-700 object-cover border border-[#38383A]">
                 </div>
             </header>
 
-            <div id="msg-container" class="flex-1 overflow-y-auto p-4 pb-4">
-                </div>
+            <div id="msg-container" class="flex-1 overflow-y-auto p-4 pb-4"></div>
 
-            <div class="bg-[#F6F6F6] border-t border-[#C6C6C8] px-2 py-2 flex items-end gap-2 pb-safe shrink-0 z-50">
-                <button onclick="document.getElementById('media_input').click()" class="text-[#007AFF] p-2 mb-1">
+            <div class="bg-[#1C1C1E] border-t border-[#38383A] px-2 py-2 flex items-end gap-2 pb-safe shrink-0 z-50">
+                <button onclick="document.getElementById('media_input').click()" class="text-[#FF3B30] p-2 mb-1">
                     <i class="fa-solid fa-plus text-xl"></i>
                 </button>
                 <input type="file" id="media_input" hidden accept="image/*,video/*" onchange="handleMediaSend(event)">
 
-                <div class="flex-1 bg-white border border-[#C6C6C8] rounded-2xl min-h-[36px] flex items-center px-3 py-1 mb-1 shadow-sm">
-                    <input id="chat-input" class="w-full bg-transparent outline-none text-[16px] max-h-24 py-1" placeholder="" onkeydown="handleInputKey(event)" oninput="handleTypingInput()">
+                <div class="flex-1 bg-[#2C2C2E] rounded-2xl min-h-[36px] flex items-center px-3 py-1 mb-1">
+                    <input id="chat-input" class="w-full bg-transparent outline-none text-[16px] text-white max-h-24 py-1" placeholder="" onkeydown="handleInputKey(event)" oninput="handleTypingInput()">
                 </div>
                 
-                <button onclick="sendMessage()" id="send-btn" class="text-[#007AFF] font-bold p-2 mb-1 hidden transition-all">
-                    <i class="fa-solid fa-paper-plane"></i>
+                <button onclick="sendMessage()" id="send-btn" class="bg-[#FF3B30] rounded-full w-9 h-9 flex items-center justify-center text-white mb-1 hidden transition-all">
+                    <i class="fa-solid fa-paper-plane text-sm"></i>
                 </button>
-                <button onclick="toggleMic()" id="mic-btn" class="text-[#007AFF] p-2 mb-1 transition-all">
+                <button onclick="toggleMic()" id="mic-btn" class="text-[#FF3B30] p-2 mb-1 transition-all">
                     <i class="fa-solid fa-microphone text-lg"></i>
                 </button>
             </div>
@@ -214,121 +221,110 @@
 
     </div>
 
-    <div id="new-chat-modal" class="fixed inset-0 z-[200] hidden bg-black/50 backdrop-blur-sm transition-opacity">
-        <div class="absolute inset-x-0 bottom-0 top-20 bg-[#F2F2F7] rounded-t-2xl flex flex-col overflow-hidden">
-            <div class="bg-[#F6F6F6] p-4 flex justify-between items-center border-b border-[#C6C6C8]">
-                <button onclick="closeModal('new-chat-modal')" class="text-[#007AFF] text-[17px]">Cancelar</button>
-                <span class="font-bold text-[17px]">Nova Conversa</span>
+    <div id="story-viewer" class="fixed inset-0 z-[300] hidden bg-black flex flex-col">
+        <div class="h-1 bg-gray-700 w-full flex mb-2 mt-safe-top px-2">
+            <div class="h-full bg-white w-full animate-loader"></div>
+        </div>
+        <div class="flex-1 flex items-center justify-center relative">
+            <img id="story-img" class="max-h-full max-w-full object-contain">
+            <div class="absolute top-4 left-4 flex items-center gap-2">
+                <img id="story-avatar" class="w-10 h-10 rounded-full border border-white">
+                <span id="story-user" class="text-white font-bold shadow-black drop-shadow-md">User</span>
+            </div>
+            <button onclick="document.getElementById('story-viewer').classList.add('hidden')" class="absolute top-4 right-4 text-white text-3xl">&times;</button>
+        </div>
+    </div>
+
+    <div id="new-chat-modal" class="fixed inset-0 z-[200] hidden bg-black/80 backdrop-blur-sm">
+        <div class="absolute inset-x-0 bottom-0 top-20 bg-[#1C1C1E] rounded-t-2xl flex flex-col overflow-hidden">
+            <div class="bg-[#1C1C1E] p-4 flex justify-between items-center border-b border-[#38383A]">
+                <button onclick="closeModal('new-chat-modal')" class="text-[#FF3B30] text-[17px]">Cancelar</button>
+                <span class="font-bold text-[17px] text-white">Nova Conversa</span>
                 <span class="w-14"></span>
             </div>
             <div class="p-4">
-                <p class="text-gray-500 text-sm mb-2 px-2">Buscar usuário para adicionar:</p>
                 <div class="flex gap-2">
-                    <input id="search-user-input" placeholder="Nome de usuário..." class="flex-1 bg-white p-3 rounded-xl border border-gray-300 outline-none">
-                    <button onclick="searchUsers()" class="bg-[#007AFF] text-white px-6 rounded-xl font-bold">Buscar</button>
+                    <input id="search-user-input" placeholder="Buscar usuário..." class="flex-1 bg-[#2C2C2E] text-white p-3 rounded-xl outline-none">
+                    <button onclick="searchUsers()" class="bg-[#FF3B30] text-white px-6 rounded-xl font-bold">Buscar</button>
                 </div>
-                <div id="search-results" class="mt-6 bg-white rounded-xl overflow-hidden divide-y divide-gray-100"></div>
+                <div id="search-results" class="mt-6 divide-y divide-[#38383A]"></div>
             </div>
         </div>
     </div>
 
-    <div id="requests-modal" class="fixed inset-0 z-[200] hidden bg-black/50 backdrop-blur-sm">
-        <div class="absolute inset-x-0 bottom-0 top-40 bg-[#F2F2F7] rounded-t-2xl flex flex-col">
-            <div class="bg-[#F6F6F6] p-4 flex justify-between items-center border-b border-[#C6C6C8]">
-                <button onclick="closeModal('requests-modal')" class="text-[#007AFF] font-bold">Fechar</button>
-                <span class="font-bold">Solicitações</span>
+    <div id="contact-info-modal" class="fixed inset-0 z-[200] hidden bg-black/70" onclick="this.classList.add('hidden')">
+        <div class="absolute inset-x-0 bottom-0 bg-[#1C1C1E] rounded-t-2xl p-6 flex flex-col items-center pb-safe border-t border-[#FF3B30]" onclick="event.stopPropagation()">
+            <img id="info_avatar" class="w-24 h-24 rounded-full bg-gray-700 object-cover mb-4 border-2 border-[#FF3B30]">
+            <h2 id="info_name" class="text-2xl font-bold mb-1 text-white">Nome</h2>
+            <p id="info_seen" class="text-[#FF3B30] text-sm mb-4 font-medium">--</p>
+            <div class="w-full bg-[#2C2C2E] rounded-xl p-4 mb-4">
+                <span class="text-xs text-gray-400 uppercase font-bold">Recado</span>
+                <p id="info_bio" class="text-white mt-1">Sem recado.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="requests-modal" class="fixed inset-0 z-[200] hidden bg-black/80">
+        <div class="absolute inset-x-0 bottom-0 top-40 bg-[#1C1C1E] rounded-t-2xl flex flex-col">
+            <div class="bg-[#1C1C1E] p-4 flex justify-between items-center border-b border-[#38383A]">
+                <button onclick="closeModal('requests-modal')" class="text-[#FF3B30]">Fechar</button>
+                <span class="font-bold text-white">Solicitações</span>
                 <span class="w-10"></span>
             </div>
             <div id="requests-list" class="p-4 overflow-y-auto flex-1"></div>
         </div>
     </div>
 
-    <div id="contact-info-modal" class="fixed inset-0 z-[200] hidden bg-black/50" onclick="this.classList.add('hidden')">
-        <div class="absolute inset-x-0 bottom-0 bg-[#F2F2F7] rounded-t-2xl p-6 flex flex-col items-center pb-safe" onclick="event.stopPropagation()">
-            <img id="info_avatar" class="w-24 h-24 rounded-full bg-gray-300 object-cover mb-4 shadow-lg border-2 border-white">
-            <h2 id="info_name" class="text-2xl font-bold mb-1">Nome</h2>
-            <p id="info_seen" class="text-gray-500 text-sm mb-4">Visto por último: --</p>
-            <div class="w-full bg-white rounded-xl p-4 shadow-sm mb-4">
-                <span class="text-xs text-gray-400 uppercase font-bold">Recado</span>
-                <p id="info_bio" class="text-gray-800 mt-1">Sem recado.</p>
-            </div>
-        </div>
-    </div>
-
     <script>
-        // --- VARIÁVEIS GLOBAIS ---
         const socket = io();
         let currentUser = null;
-        let activeChat = null; // Username do chat aberto
-        let mediaRecorder = null;
-        let audioChunks = [];
+        let activeChat = null;
         let typingTimeout = null;
-        let usersCache = {}; // Cache simples de infos de usuário
 
-        // --- INICIALIZAÇÃO ---
+        // --- INIT ---
         window.onload = () => {
-            const saved = localStorage.getItem('whats_pro_user');
+            const saved = localStorage.getItem('whats_black_user');
             if (saved) {
                 currentUser = JSON.parse(saved);
                 initializeAfterAuth();
             }
         };
 
-        // --- SISTEMA DE API (WRAPPER) ---
         async function api(endpoint, method = 'GET', body = null) {
-            const options = {
-                method,
-                headers: { 'Content-Type': 'application/json' }
-            };
+            const options = { method, headers: { 'Content-Type': 'application/json' } };
             if (body) options.body = JSON.stringify(body);
-            try {
-                const res = await fetch(endpoint, options);
-                return res.ok ? await res.json() : null;
-            } catch (e) { console.error("API Error:", e); return null; }
+            try { return await fetch(endpoint, options).then(r => r.ok ? r.json() : null); } 
+            catch (e) { console.error(e); return null; }
         }
 
-        // --- AUTENTICAÇÃO ---
+        // --- AUTH ---
         async function handleAuth(type) {
             const u = document.getElementById('u_auth').value.trim();
             const p = document.getElementById('p_auth').value.trim();
-            const errEl = document.getElementById('auth-error');
-            
-            if (!u || !p) {
-                errEl.innerText = "Preencha todos os campos.";
-                errEl.classList.remove('hidden');
-                return;
-            }
+            if (!u || !p) return alert("Preencha tudo");
 
             const endpoint = type === 'login' ? '/auth/login' : '/auth/register';
             const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                method: 'POST', headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ username: u, password: p })
             });
 
             if (res.ok) {
                 if (type === 'register') {
-                    alert("Conta criada! Faça login.");
-                    handleAuth('login'); // Auto login attempt or just switch UI
+                    alert("Conta criada! Entre agora.");
+                    handleAuth('login');
                 } else {
                     currentUser = await res.json();
-                    localStorage.setItem('whats_pro_user', JSON.stringify(currentUser));
+                    localStorage.setItem('whats_black_user', JSON.stringify(currentUser));
                     initializeAfterAuth();
                 }
-            } else {
-                errEl.innerText = type === 'login' ? "Usuário ou senha inválidos." : "Usuário já existe.";
-                errEl.classList.remove('hidden');
-            }
+            } else alert("Erro de autenticação");
         }
 
         function initializeAfterAuth() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
-            
-            // Socket setup
             socket.emit('join', currentUser.username);
-            
-            // UI setup
             updateMyProfileUI();
             loadChatList();
             checkFriendRequests();
@@ -336,141 +332,103 @@
         }
 
         function logout() {
-            localStorage.removeItem('whats_pro_user');
+            localStorage.removeItem('whats_black_user');
             location.reload();
         }
 
-        // --- SOCKET LISTENERS ---
+        // --- SOCKETS ---
         function setupSocketListeners() {
-            // Nova Mensagem
             socket.on('new_msg', (msg) => {
                 if (activeChat === msg.s) {
                     renderMessage(msg);
                     socket.emit('mark_read', { s: msg.s, r: currentUser.username });
                     scrollToBottom();
-                } else {
-                    loadChatList(); // Atualiza lista para mostrar bolinha verde ou mover p/ topo
                 }
+                loadChatList();
             });
 
-            // Status de Mensagem (Lido/Entregue)
-            socket.on('msgs_read_update', (data) => {
-                if (activeChat === data.reader) {
-                    document.querySelectorAll('.msg-check').forEach(el => el.classList.add('text-blue-500'));
-                }
-            });
-
-            // Status Online/Offline do contato
-            socket.on('contact_status_update', (data) => {
-                if (activeChat === data.username) {
-                    updateChatHeaderStatus(data.status, data.last_seen);
-                }
-            });
-
-            // Digitando...
             socket.on('typing_status', (data) => {
                 if (activeChat === data.from) {
-                    const statusEl = document.getElementById('chat_status');
-                    if (data.isTyping) {
-                        statusEl.innerText = "digitando...";
-                        statusEl.classList.add('text-blue-500', 'font-bold');
-                    } else {
-                        // Requisitar status real para restaurar
-                        socket.emit('get_status_detailed', activeChat);
-                    }
+                    const el = document.getElementById('chat_status');
+                    el.innerText = data.isTyping ? "digitando..." : "Online";
+                    el.style.color = data.isTyping ? "#FF3B30" : "#8E8E93";
+                    if(!data.isTyping) socket.emit('get_status_detailed', activeChat);
                 }
             });
 
-            // Resposta detalhada de status (ao abrir chat)
             socket.on('status_result', (data) => {
-                if (activeChat === data.username) {
-                    updateChatHeaderStatus(data.status, data.last_seen);
-                }
+                if (activeChat === data.username) updateHeaderStatus(data);
             });
-
-            // Solicitação de Amizade
-            socket.on('friend_request_received', () => {
-                checkFriendRequests();
-                // Opcional: mostrar toast/notificação
-            });
-
-            socket.on('friend_request_accepted', () => {
-                loadChatList();
+            
+            socket.on('contact_status_update', (data) => {
+                if (activeChat === data.username) updateHeaderStatus(data);
             });
         }
 
-        // --- LISTA DE CONVERSAS ---
+        function updateHeaderStatus(data) {
+            const el = document.getElementById('chat_status');
+            if(data.status === 'online') {
+                el.innerText = 'Online';
+                el.className = 'text-[12px] text-[#FF3B30] font-bold leading-tight h-4';
+            } else {
+                const date = new Date(data.last_seen);
+                const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                el.innerText = `Visto hoje às ${timeStr}`;
+                el.className = 'text-[12px] text-gray-500 leading-tight h-4';
+            }
+        }
+
+        // --- CHATS ---
         async function loadChatList() {
             const chats = await api(`/api/chats/${currentUser.username}`);
-            const listEl = document.getElementById('chat-list');
-            listEl.innerHTML = '';
-
-            if (!chats || chats.length === 0) {
-                listEl.innerHTML = '<div class="p-8 text-center text-gray-500">Nenhuma conversa.<br>Toque no ícone de lápis para adicionar amigos.</div>';
-                return;
+            const list = document.getElementById('chat-list');
+            list.innerHTML = '';
+            
+            if(!chats || chats.length === 0) {
+                list.innerHTML = '<div class="text-center text-gray-600 mt-10">Sem conversas</div>'; return;
             }
 
             chats.forEach(chat => {
                 const avatar = chat.avatar || `https://ui-avatars.com/api/?name=${chat.contact}&background=random`;
-                const time = formatTime(chat.last_time);
-                const unreadClass = chat.unread > 0 ? 'font-bold text-black' : 'text-gray-500';
-                const unreadBadge = chat.unread > 0 ? `<div class="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">${chat.unread}</div>` : '';
-
-                let lastMsgPreview = chat.last_msg || '<i>Iniciar conversa</i>';
-                if (chat.last_type === 'image') lastMsgPreview = '📷 Foto';
-                if (chat.last_type === 'video') lastMsgPreview = '🎥 Vídeo';
-                if (chat.last_type === 'audio') lastMsgPreview = '🎤 Áudio';
-                if (chat.last_deleted) lastMsgPreview = '🚫 <i>Mensagem apagada</i>';
-
-                const html = `
-                    <div onclick="openChat('${chat.contact}', '${avatar}')" class="flex items-center gap-3 py-3 pr-4 border-b border-[#C6C6C8] cursor-pointer bg-white active:bg-gray-100 transition-colors">
-                        <img src="${avatar}" class="w-14 h-14 rounded-full bg-gray-200 object-cover shrink-0">
+                const unread = chat.unread > 0 
+                    ? `<div class="bg-[#FF3B30] text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">${chat.unread}</div>` 
+                    : '';
+                
+                list.innerHTML += `
+                    <div onclick="openChat('${chat.contact}', '${avatar}')" class="flex items-center gap-3 py-3 pr-4 cursor-pointer hover:bg-[#111]">
+                        <img src="${avatar}" class="w-14 h-14 rounded-full object-cover">
                         <div class="flex-1 min-w-0">
-                            <div class="flex justify-between items-baseline mb-1">
-                                <h3 class="font-bold text-[17px] truncate text-black">${chat.contact}</h3>
-                                <span class="text-[14px] ${chat.unread > 0 ? 'text-blue-500' : 'text-gray-400'}">${time}</span>
+                            <div class="flex justify-between items-baseline">
+                                <h3 class="font-bold text-white text-[17px]">${chat.contact}</h3>
+                                <span class="text-[14px] ${chat.unread ? 'text-[#FF3B30]' : 'text-gray-500'}">${formatTime(chat.last_time)}</span>
                             </div>
-                            <div class="flex justify-between items-center">
-                                <p class="text-[15px] truncate pr-2 flex-1 ${unreadClass}">${lastMsgPreview}</p>
-                                ${unreadBadge}
+                            <div class="flex justify-between items-center mt-1">
+                                <p class="text-gray-400 text-[15px] truncate flex-1">${chat.last_msg || 'Nova conversa'}</p>
+                                ${unread}
                             </div>
                         </div>
                     </div>
                 `;
-                listEl.innerHTML += html;
             });
         }
 
-        // --- LÓGICA DO CHAT (MENSAGENS) ---
-        async function openChat(username, avatarUrl) {
+        async function openChat(username, avatar) {
             activeChat = username;
-            
-            // Setup Header
             document.getElementById('chat_name').innerText = username;
-            document.getElementById('chat_avatar_header').src = avatarUrl;
-            document.getElementById('chat_status').innerText = 'conectando...';
-            document.getElementById('chat_status').className = 'text-[12px] text-gray-500 leading-tight h-4';
+            document.getElementById('chat_avatar_header').src = avatar;
             
-            // Animation
             const room = document.getElementById('chat-room');
             room.classList.remove('screen-hidden');
             room.classList.add('screen-active');
 
-            // Fetch Messages
             const msgs = await api(`/api/messages/${currentUser.username}/${username}`);
-            const container = document.getElementById('msg-container');
-            container.innerHTML = ''; // Clear
-            
-            if(msgs) msgs.forEach(renderMessage);
-            
-            // Mark as Read
-            socket.emit('mark_read', { s: username, r: currentUser.username });
-            
-            // Get Realtime Status
-            socket.emit('get_status_detailed', username);
-
+            document.getElementById('msg-container').innerHTML = '';
+            msgs.forEach(renderMessage);
             scrollToBottom();
-            loadChatList(); // Refresh list to remove unread count
+            
+            socket.emit('mark_read', { s: username, r: currentUser.username });
+            socket.emit('get_status_detailed', username);
+            loadChatList();
         }
 
         function closeChat() {
@@ -485,319 +443,91 @@
             const isMe = msg.s === currentUser.username;
             const container = document.getElementById('msg-container');
             
-            let contentHtml = '';
-            
-            if (msg.is_deleted) {
-                contentHtml = '<span class="italic text-gray-500"><i class="fa-solid fa-ban mr-1"></i> Mensagem apagada</span>';
-            } else {
-                switch(msg.type) {
-                    case 'text':
-                        contentHtml = `<span class="break-words whitespace-pre-wrap">${msg.c}</span>`;
-                        break;
-                    case 'image':
-                        contentHtml = `<img src="${msg.c}" class="rounded-lg max-w-full cursor-pointer" onclick="viewImage(this.src)">`;
-                        break;
-                    case 'video':
-                        contentHtml = `<video src="${msg.c}" controls class="rounded-lg max-w-full bg-black"></video>`;
-                        break;
-                    case 'audio':
-                        contentHtml = `<audio src="${msg.c}" controls class="h-10 w-[200px]"></audio>`;
-                        break;
-                }
-            }
-
-            const timeStr = new Date(msg.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            
-            // Check mark logic
-            let checkIcon = '';
-            if (isMe && !msg.is_deleted) {
-                const color = msg.status === 2 ? 'text-blue-500' : 'text-gray-400';
-                checkIcon = `<span class="msg-check ${color} text-[10px] ml-1"><i class="fa-solid fa-check-double"></i></span>`;
-            }
+            let content = `<span class="break-words whitespace-pre-wrap">${msg.c}</span>`;
+            if (msg.type === 'image') content = `<img src="${msg.c}" class="rounded-lg max-w-full">`;
+            if (msg.type === 'audio') content = `<audio src="${msg.c}" controls class="h-8 w-[200px]"></audio>`;
 
             const div = document.createElement('div');
             div.className = `msg-row ${isMe ? 'msg-me' : 'msg-them'}`;
             div.innerHTML = `
                 <div class="msg-bubble shadow-sm">
-                    ${contentHtml}
+                    ${content}
                     <div class="msg-meta">
-                        ${timeStr}
-                        ${checkIcon}
+                        ${new Date(msg.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        ${isMe ? '<i class="fa-solid fa-check-double text-[#FF3B30]"></i>' : ''}
                     </div>
                 </div>
             `;
             container.appendChild(div);
         }
 
-        // --- ENVIAR MENSAGENS ---
-        function handleInputKey(e) {
-            handleTypingInput();
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
-        }
-
-        function handleTypingInput() {
-            const val = document.getElementById('chat-input').value;
-            
-            // Toggle Mic/Send Button
-            if (val.trim().length > 0) {
-                document.getElementById('mic-btn').classList.add('hidden');
-                document.getElementById('send-btn').classList.remove('hidden');
-            } else {
-                document.getElementById('mic-btn').classList.remove('hidden');
-                document.getElementById('send-btn').classList.add('hidden');
-            }
-
-            // Emit Typing Socket
-            if (!activeChat) return;
-            socket.emit('typing', { to: activeChat, isTyping: true });
-            
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
-                socket.emit('typing', { to: activeChat, isTyping: false });
-            }, 2000);
-        }
-
         function sendMessage() {
             const input = document.getElementById('chat-input');
             const txt = input.value.trim();
-            if (!txt) return;
+            if(!txt) return;
 
-            const payload = {
-                s: currentUser.username,
-                r: activeChat,
-                c: txt,
-                type: 'text'
-            };
-
-            // Envia socket
+            const payload = { s: currentUser.username, r: activeChat, c: txt, type: 'text' };
             socket.emit('send_msg', payload);
-            
-            // Renderiza otimisticamente
-            renderMessage({ ...payload, time: new Date().toISOString(), status: 0 });
+            renderMessage({...payload, time: new Date(), status: 0});
             scrollToBottom();
-            
             input.value = '';
-            handleTypingInput(); // Reset buttons
+            handleTypingInput();
         }
 
-        function handleMediaSend(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = () => {
-                const type = file.type.startsWith('video') ? 'video' : 'image';
-                const payload = {
-                    s: currentUser.username,
-                    r: activeChat,
-                    c: reader.result,
-                    type: type
-                };
-                socket.emit('send_msg', payload);
-                renderMessage({ ...payload, time: new Date().toISOString(), status: 0 });
-                scrollToBottom();
-            };
-            reader.readAsDataURL(file);
-            e.target.value = ''; // Reset input
-        }
-
-        async function toggleMic() {
-            const btn = document.getElementById('mic-btn');
+        // --- TYPING & UTILS ---
+        function handleTypingInput() {
+            const val = document.getElementById('chat-input').value;
+            const hasText = val.length > 0;
+            document.getElementById('mic-btn').classList.toggle('hidden', hasText);
+            document.getElementById('send-btn').classList.toggle('hidden', !hasText);
             
-            if (!mediaRecorder) {
-                // START RECORDING
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    mediaRecorder = new MediaRecorder(stream);
-                    audioChunks = [];
-                    
-                    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-                    
-                    mediaRecorder.onstop = () => {
-                        const blob = new Blob(audioChunks, { type: 'audio/webm' }); // WebM é melhor para web
-                        const reader = new FileReader();
-                        reader.readAsDataURL(blob);
-                        reader.onloadend = () => {
-                            const base64 = reader.result;
-                            const payload = {
-                                s: currentUser.username,
-                                r: activeChat,
-                                c: base64,
-                                type: 'audio'
-                            };
-                            socket.emit('send_msg', payload);
-                            renderMessage({ ...payload, time: new Date().toISOString(), status: 0 });
-                            scrollToBottom();
-                        };
-                        
-                        // Clean tracks
-                        stream.getTracks().forEach(t => t.stop());
-                        mediaRecorder = null;
-                    };
-
-                    mediaRecorder.start();
-                    btn.innerHTML = '<i class="fa-solid fa-stop text-red-500 animate-pulse"></i>';
-                } catch (err) {
-                    alert("Erro ao acessar microfone: " + err.message);
-                }
-            } else {
-                // STOP RECORDING
-                mediaRecorder.stop();
-                btn.innerHTML = '<i class="fa-solid fa-microphone text-lg"></i>';
+            if(activeChat) {
+                socket.emit('typing', { to: activeChat, isTyping: true });
+                clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => socket.emit('typing', { to: activeChat, isTyping: false }), 2000);
             }
         }
-
-        // --- STATUS & ONLINE/OFFLINE ---
-        function updateChatHeaderStatus(status, lastSeen) {
-            const el = document.getElementById('chat_status');
-            el.className = 'text-[12px] leading-tight h-4 transition-colors';
-            
-            if (status === 'online') {
-                el.innerText = 'Online';
-                el.classList.add('text-blue-500');
-            } else {
-                el.classList.add('text-gray-500');
-                if (lastSeen) {
-                    const date = new Date(lastSeen);
-                    const now = new Date();
-                    const isToday = date.toDateString() === now.toDateString();
-                    const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                    el.innerText = `Visto por último ${isToday ? 'hoje' : date.toLocaleDateString()} às ${timeStr}`;
-                } else {
-                    el.innerText = 'Offline';
-                }
-            }
+        
+        function scrollToBottom() {
+            const c = document.getElementById('msg-container');
+            c.scrollTop = c.scrollHeight;
         }
 
-        // --- AMIGOS E SOLICITAÇÕES ---
-        async function searchUsers() {
-            const term = document.getElementById('search-user-input').value.trim();
-            if(!term) return;
-            
-            const results = await api(`/api/search/${term}`);
-            const resContainer = document.getElementById('search-results');
-            resContainer.innerHTML = '';
-            
-            if(!results || results.length === 0) {
-                resContainer.innerHTML = '<div class="p-4 text-center text-gray-500">Nenhum usuário encontrado</div>';
-                return;
-            }
-
-            results.forEach(u => {
-                if(u.username === currentUser.username) return; // Don't show self
-                
-                const avatar = u.avatar || `https://ui-avatars.com/api/?name=${u.username}`;
-                
-                const div = document.createElement('div');
-                div.className = "flex items-center justify-between p-3";
-                div.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <img src="${avatar}" class="w-10 h-10 rounded-full bg-gray-200 object-cover">
-                        <div>
-                            <h4 class="font-bold text-sm">${u.username}</h4>
-                            <p class="text-xs text-gray-500 truncate max-w-[150px]">${u.bio || ''}</p>
-                        </div>
-                    </div>
-                    <button onclick="sendFriendRequest('${u.username}', this)" class="bg-gray-100 text-blue-500 text-xs font-bold px-3 py-1.5 rounded-lg">Adicionar</button>
-                `;
-                resContainer.appendChild(div);
-            });
-        }
-
-        async function sendFriendRequest(toUser, btnElement) {
-            const res = await api('/api/friend-request', 'POST', { from: currentUser.username, to: toUser });
-            if (res) {
-                socket.emit('send_friend_request', { from: currentUser.username, to: toUser });
-                if(res.status === 'sent') {
-                    btnElement.innerText = "Enviado";
-                    btnElement.disabled = true;
-                    btnElement.classList.add('text-gray-400');
-                } else if (res.status === 'pending') {
-                    alert("Solicitação já pendente.");
-                } else if (res.status === 'friends') {
-                    alert("Vocês já são amigos!");
-                }
-            }
-        }
-
-        async function checkFriendRequests() {
-            const reqs = await api(`/api/friend-requests/${currentUser.username}`);
-            const bar = document.getElementById('friend-requests-bar');
-            const count = document.getElementById('req-count');
-            const list = document.getElementById('requests-list');
-            
-            list.innerHTML = ''; // Clear modal list
-
-            if (reqs && reqs.length > 0) {
-                bar.classList.remove('hidden');
-                count.innerText = reqs.length;
-                
-                reqs.forEach(r => {
-                    const avatar = r.avatar || `https://ui-avatars.com/api/?name=${r.username}`;
-                    list.innerHTML += `
-                        <div class="flex items-center justify-between bg-white p-3 rounded-xl mb-2 shadow-sm">
-                            <div class="flex items-center gap-3">
-                                <img src="${avatar}" class="w-12 h-12 rounded-full object-cover">
-                                <span class="font-bold">${r.username}</span>
-                            </div>
-                            <div class="flex gap-2">
-                                <button onclick="respondFriend('${r.username}', 'accept')" class="bg-blue-500 text-white px-3 py-1 rounded-lg text-sm font-bold">Aceitar</button>
-                                <button onclick="respondFriend('${r.username}', 'reject')" class="bg-gray-200 text-gray-600 px-3 py-1 rounded-lg text-sm font-bold">X</button>
-                            </div>
-                        </div>
-                    `;
-                });
-            } else {
-                bar.classList.add('hidden');
-                list.innerHTML = '<div class="text-center text-gray-500 mt-10">Nenhuma solicitação pendente.</div>';
-            }
-        }
-
-        async function respondFriend(friend, action) {
-            await api('/api/respond-request', 'POST', { me: currentUser.username, friend, action });
-            if(action === 'accept') {
-                socket.emit('respond_friend', { me: currentUser.username, friend, action: 'accept' });
-            }
-            checkFriendRequests();
-            loadChatList();
-            if(document.getElementById('requests-list').children.length <= 1) closeModal('requests-modal');
-        }
-
-        // --- STORIES / STATUS ---
+        // --- STATUS / STORIES (FIXED) ---
         async function loadStatus() {
             const list = document.getElementById('status-list');
-            list.innerHTML = '<div class="flex justify-center"><div class="loader"></div></div>';
+            list.innerHTML = '<div class="text-gray-500 text-center">Carregando...</div>';
             
             const stories = await api(`/api/stories/${currentUser.username}`);
             list.innerHTML = '';
-            
+
             if(!stories || stories.length === 0) {
-                list.innerHTML = '<p class="text-gray-400 text-center py-4 text-sm">Nenhuma atualização recente.</p>';
+                list.innerHTML = '<div class="text-gray-600 text-center text-sm py-4">Nenhum status recente.</div>';
                 return;
             }
 
-            // Agrupar por usuário (Simplificado visualmente)
-            const seenUsers = new Set();
+            // Agrupa stories por usuário visualmente
+            const uniqueUsers = {};
             stories.forEach(s => {
-                if(seenUsers.has(s.username)) return;
-                seenUsers.add(s.username);
-                
+                if(!uniqueUsers[s.username]) uniqueUsers[s.username] = s;
+            });
+
+            Object.values(uniqueUsers).forEach(s => {
                 const avatar = s.avatar || `https://ui-avatars.com/api/?name=${s.username}`;
-                const time = formatTime(s.time);
-                
-                list.innerHTML += `
-                    <div class="flex items-center gap-3 py-2 cursor-pointer">
-                        <div class="p-[2px] rounded-full border-2 border-[#007AFF]">
-                            <img src="${avatar}" class="w-14 h-14 rounded-full object-cover border-2 border-white">
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-black">${s.username}</h3>
-                            <p class="text-xs text-gray-500">${time}</p>
-                        </div>
+                // Quando clicar, abre o visualizador com a imagem do story
+                const item = document.createElement('div');
+                item.className = "flex items-center gap-3 py-2 cursor-pointer";
+                item.onclick = () => openStoryViewer(s.content, s.username, avatar);
+                item.innerHTML = `
+                    <div class="p-[2px] rounded-full border-2 border-[#FF3B30]">
+                        <img src="${avatar}" class="w-14 h-14 rounded-full object-cover border-2 border-black">
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-white">${s.username}</h3>
+                        <p class="text-xs text-gray-500">${formatTime(s.time)}</p>
                     </div>
                 `;
+                list.appendChild(item);
             });
         }
 
@@ -807,21 +537,79 @@
             
             const reader = new FileReader();
             reader.onload = async () => {
-                const payload = {
+                // Envia para o servidor
+                await api('/api/story', 'POST', {
                     username: currentUser.username,
-                    content: reader.result,
+                    content: reader.result, // Base64 da imagem
                     type: 'image',
                     caption: '',
                     bg_color: '#000000'
-                };
-                await api('/api/story', 'POST', payload);
+                });
                 alert("Status publicado!");
-                loadStatus();
+                loadStatus(); // Recarrega lista
             };
             reader.readAsDataURL(file);
         }
 
-        // --- PERFIL ---
+        function openStoryViewer(imgSrc, username, avatar) {
+            const viewer = document.getElementById('story-viewer');
+            document.getElementById('story-img').src = imgSrc;
+            document.getElementById('story-user').innerText = username;
+            document.getElementById('story-avatar').src = avatar;
+            viewer.classList.remove('hidden');
+            
+            // Auto close after 5s
+            setTimeout(() => viewer.classList.add('hidden'), 5000);
+        }
+
+        // --- AMIZADE ---
+        async function searchUsers() {
+            const val = document.getElementById('search-user-input').value;
+            const res = await api(`/api/search/${val}`);
+            const div = document.getElementById('search-results');
+            div.innerHTML = '';
+            if(res) res.forEach(u => {
+                if(u.username === currentUser.username) return;
+                div.innerHTML += `
+                    <div class="flex justify-between items-center py-3">
+                        <span class="text-white font-bold">${u.username}</span>
+                        <button onclick="addFriend('${u.username}', this)" class="text-[#FF3B30] text-sm font-bold">Adicionar</button>
+                    </div>`;
+            });
+        }
+
+        async function addFriend(to, btn) {
+            await api('/api/friend-request', 'POST', { from: currentUser.username, to });
+            socket.emit('send_friend_request', { from: currentUser.username, to });
+            btn.innerText = "Enviado";
+        }
+
+        async function checkFriendRequests() {
+            const reqs = await api(`/api/friend-requests/${currentUser.username}`);
+            if(reqs && reqs.length > 0) {
+                document.getElementById('friend-requests-bar').classList.remove('hidden');
+                document.getElementById('req-count').innerText = reqs.length;
+                const list = document.getElementById('requests-list');
+                list.innerHTML = '';
+                reqs.forEach(r => {
+                    list.innerHTML += `
+                        <div class="flex justify-between items-center bg-[#2C2C2E] p-3 rounded mb-2">
+                            <span class="text-white font-bold">${r.username}</span>
+                            <div class="flex gap-2">
+                                <button onclick="respond('${r.username}', 'accept')" class="text-[#FF3B30] font-bold">Aceitar</button>
+                                <button onclick="respond('${r.username}', 'reject')" class="text-gray-500">X</button>
+                            </div>
+                        </div>`;
+                });
+            }
+        }
+
+        async function respond(friend, action) {
+            await api('/api/respond-request', 'POST', { me: currentUser.username, friend, action });
+            location.reload();
+        }
+
+        // --- PROFILE ---
         function updateMyProfileUI() {
             const pic = currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.username}`;
             document.getElementById('settings_avatar').src = pic;
@@ -831,68 +619,32 @@
         }
 
         async function updateProfilePic(e) {
-            const f = e.target.files[0]; if(!f) return;
+            const f = e.target.files[0];
             const r = new FileReader();
             r.onload = async () => {
                 currentUser.avatar = r.result;
                 await api('/api/update-profile', 'POST', currentUser);
                 updateMyProfileUI();
-                localStorage.setItem('whats_pro_user', JSON.stringify(currentUser));
+                localStorage.setItem('whats_black_user', JSON.stringify(currentUser));
             }; r.readAsDataURL(f);
         }
 
-        async function saveBio(val) {
-            if(currentUser.bio === val) return;
-            currentUser.bio = val;
-            await api('/api/update-profile', 'POST', currentUser);
-            localStorage.setItem('whats_pro_user', JSON.stringify(currentUser));
+        function switchTab(t) {
+            ['chats','status','settings'].forEach(x => {
+                document.getElementById('tab-'+x).classList.add('screen-hidden');
+                document.getElementById('tab-'+x).classList.remove('screen-active');
+                document.getElementById('btn-'+x).classList.remove('active');
+            });
+            document.getElementById('tab-'+t).classList.remove('screen-hidden');
+            document.getElementById('tab-'+t).classList.add('screen-active');
+            document.getElementById('btn-'+t).classList.add('active');
+            if(t === 'status') loadStatus();
+            if(t === 'chats') loadChatList();
         }
 
-        // --- HELPERS ---
-        function switchTab(tabId) {
-            // Hide all screens
-            document.getElementById('tab-chats').classList.add('screen-hidden');
-            document.getElementById('tab-chats').classList.remove('screen-active');
-            document.getElementById('tab-status').classList.add('screen-hidden');
-            document.getElementById('tab-status').classList.remove('screen-active');
-            document.getElementById('tab-settings').classList.add('screen-hidden');
-            document.getElementById('tab-settings').classList.remove('screen-active');
-            
-            // Deactivate navs
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            
-            // Show target
-            const target = document.getElementById('tab-'+tabId);
-            target.classList.remove('screen-hidden');
-            target.classList.add('screen-active');
-            
-            document.getElementById('btn-'+tabId).classList.add('active');
-
-            if(tabId === 'chats') loadChatList();
-            if(tabId === 'status') loadStatus();
-        }
-
-        function scrollToBottom() {
-            const c = document.getElementById('msg-container');
-            c.scrollTop = c.scrollHeight;
-        }
-
-        function formatTime(isoString) {
-            if(!isoString) return '';
-            const d = new Date(isoString);
-            const now = new Date();
-            const isToday = d.toDateString() === now.toDateString();
-            
-            if (isToday) {
-                return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            } else {
-                return d.toLocaleDateString([], {day: '2-digit', month: '2-digit'});
-            }
-        }
-
-        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-        
+        function openModal(id){ document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
+        function formatTime(d) { if(!d) return ''; return new Date(d).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
         async function openContactInfo() {
             if(!activeChat) return;
             const u = await api(`/api/user/${activeChat}`);
@@ -900,23 +652,9 @@
             document.getElementById('info_avatar').src = u.avatar || `https://ui-avatars.com/api/?name=${u.username}`;
             document.getElementById('info_name').innerText = u.username;
             document.getElementById('info_bio').innerText = u.bio || "Sem recado";
-            
-            // Check status again
-            socket.emit('get_status_detailed', u.username);
+            const last = u.last_seen ? new Date(u.last_seen).toLocaleTimeString() : '--';
+            document.getElementById('info_seen').innerText = `Visto às ${last}`;
         }
-
-        // Monitorar status enquanto modal de info está aberto
-        socket.on('status_result', (data) => {
-            if(document.getElementById('contact-info-modal').classList.contains('hidden') === false) {
-                 const el = document.getElementById('info_seen');
-                 if(data.status === 'online') el.innerText = "Online agora";
-                 else {
-                     const t = formatTime(data.last_seen);
-                     el.innerText = `Visto por último: ${t}`;
-                 }
-            }
-        });
-
     </script>
 </body>
 </html>
