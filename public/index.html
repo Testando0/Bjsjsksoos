@@ -394,32 +394,56 @@
             btn.classList.add('text-gray-500', 'border-gray-500');
         }
 
+        // --- FUNÇÃO DE SOLICITAÇÕES CORRIGIDA E MELHORADA ---
         async function checkFriendRequests() {
-            const reqs = await api(`/api/friend-requests/${currentUser.username}`);
-            const bar = document.getElementById('friend-requests-bar');
-            const countEl = document.getElementById('req-count');
-            const list = document.getElementById('requests-list');
+            if (!currentUser) return;
             
-            if (reqs && reqs.length > 0) {
-                bar.classList.remove('hidden');
-                countEl.innerText = reqs.length;
+            try {
+                // Chama a API corrigida
+                const reqs = await api(`/api/friend-requests/${currentUser.username}`);
+                
+                const bar = document.getElementById('friend-requests-bar');
+                const countEl = document.getElementById('req-count');
+                const list = document.getElementById('requests-list');
+                
+                // Limpa visualização anterior
                 list.innerHTML = '';
-                reqs.forEach(r => {
-                    list.innerHTML += `
-                        <div class="flex justify-between items-center bg-[#2C2C2E] p-3 rounded mb-2">
-                            <div class="flex items-center gap-3">
-                                <img src="${r.avatar || 'https://ui-avatars.com/api/?name='+r.username}" class="w-10 h-10 rounded-full">
-                                <span class="text-white font-bold">${r.username}</span>
-                            </div>
-                            <div class="flex gap-3">
-                                <button onclick="respondRequest('${r.username}', 'accept')" class="text-[#FF3B30] font-bold">Aceitar</button>
-                                <button onclick="respondRequest('${r.username}', 'reject')" class="text-gray-500">X</button>
-                            </div>
-                        </div>`;
-                });
-            } else {
-                bar.classList.add('hidden');
-                list.innerHTML = '<p class="text-gray-500 text-center mt-4">Nenhuma solicitação.</p>';
+                
+                if (reqs && reqs.length > 0) {
+                    // Mostra a barra de notificação
+                    bar.classList.remove('hidden');
+                    bar.classList.add('flex');
+                    countEl.innerText = reqs.length;
+                    
+                    // Renderiza cada solicitação
+                    reqs.forEach(r => {
+                        const avatar = r.avatar || `https://ui-avatars.com/api/?name=${r.username}`;
+                        list.innerHTML += `
+                            <div class="flex justify-between items-center bg-[#2C2C2E] p-3 rounded-lg mb-2 border border-[#38383A]">
+                                <div class="flex items-center gap-3">
+                                    <img src="${avatar}" class="w-10 h-10 rounded-full object-cover bg-gray-700">
+                                    <span class="text-white font-bold text-base">${r.username}</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="respondRequest('${r.username}', 'accept')" 
+                                        class="bg-[#FF3B30] active:bg-red-700 text-white px-4 py-1.5 rounded-full text-sm font-bold transition-colors">
+                                        Aceitar
+                                    </button>
+                                    <button onclick="respondRequest('${r.username}', 'reject')" 
+                                        class="bg-[#3A3A3C] active:bg-gray-600 text-gray-300 px-3 py-1.5 rounded-full text-sm font-bold transition-colors">
+                                        <i class="fa-solid fa-xmark"></i>
+                                    </button>
+                                </div>
+                            </div>`;
+                    });
+                } else {
+                    // Esconde a barra se não tiver nada
+                    bar.classList.add('hidden');
+                    bar.classList.remove('flex');
+                    list.innerHTML = '<p class="text-gray-500 text-center mt-10">Nenhuma solicitação pendente.</p>';
+                }
+            } catch (error) {
+                console.error("Erro ao verificar solicitações:", error);
             }
         }
 
