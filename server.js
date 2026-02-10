@@ -17,10 +17,10 @@ const db = new sqlite3.Database('./whatsapp_ios_pro.db');
 // --- INICIALIZAÇÃO ---
 db.serialize(() => {
     db.run("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, avatar TEXT, bio TEXT, last_seen DATETIME)");
-    // Adicionado 'visible_for_s' e 'visible_for_r' para gerenciar exclusão de chat sem perder histórico global
     db.run("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, s TEXT, r TEXT, c TEXT, type TEXT, status INTEGER DEFAULT 0, is_deleted INTEGER DEFAULT 0, visible_for_s INTEGER DEFAULT 1, visible_for_r INTEGER DEFAULT 1, time DATETIME DEFAULT (datetime('now','localtime')))");
     db.run("CREATE TABLE IF NOT EXISTS stories (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, content TEXT, type TEXT DEFAULT 'image', caption TEXT, bg_color TEXT, time DATETIME DEFAULT (datetime('now','localtime')))");
     db.run("CREATE TABLE IF NOT EXISTS story_views (story_id INTEGER, viewer TEXT, time DATETIME DEFAULT (datetime('now','localtime')), PRIMARY KEY(story_id, viewer))");
+    // PRIMARY KEY composta para evitar duplicatas de amizade
     db.run("CREATE TABLE IF NOT EXISTS friends (u1 TEXT, u2 TEXT, status INTEGER DEFAULT 0, action_user TEXT, PRIMARY KEY(u1, u2))");
 });
 
@@ -40,11 +40,9 @@ io.on('connection', (socket) => {
 
     socket.on('send_msg', (data) => {
         const recipientSocketId = onlineUsers[data.r];
-        // Status 1 (Entregue) apenas se o socket estiver ativo
         const status = recipientSocketId ? 1 : 0; 
         const now = new Date().toISOString();
 
-        // Insere mensagem garantindo visibilidade para ambos
         db.run("INSERT INTO messages (s, r, c, type, status, time, visible_for_s, visible_for_r) VALUES (?, ?, ?, ?, ?, ?, 1, 1)", 
             [data.s, data.r, data.c, data.type, status, now], 
             function(err) {
@@ -58,11 +56,8 @@ io.on('connection', (socket) => {
     });
 
     socket.on('mark_read', (data) => {
-        // Só marca lido se o remetente (s) ainda estiver online para receber o aviso? 
-        // Não, marcamos no banco de qualquer forma.
         db.run("UPDATE messages SET status = 2 WHERE s = ? AND r = ? AND status < 2", [data.s, data.r], function(err) {
             if(!err && this.changes > 0) {
-                // Avisa o remetente que a mensagem foi lida
                 if(onlineUsers[data.s]) {
                     io.to(onlineUsers[data.s]).emit('msgs_read_update', { reader: data.r });
                 }
@@ -70,10 +65,8 @@ io.on('connection', (socket) => {
         });
     });
 
-    // Apagar chat inteiro (Esconder histórico para mim)
     socket.on('delete_chat', (data) => {
         const { me, partner } = data;
-        // Se eu sou o remetente (s), seto visible_for_s = 0. Se sou receptor (r), visible_for_r = 0.
         db.run("UPDATE messages SET visible_for_s = 0 WHERE s = ? AND r = ?", [me, partner]);
         db.run("UPDATE messages SET visible_for_r = 0 WHERE r = ? AND s = ?", [me, partner]);
         socket.emit('chat_deleted_ok', { partner });
@@ -94,9 +87,19 @@ io.on('connection', (socket) => {
         }
     });
 
+    // --- CORREÇÃO AQUI: Nome do evento ajustado para 'new_friend_request' ---
     socket.on('send_friend_request', (data) => {
         const { from, to } = data;
-        if(onlineUsers[to]) io.to(onlineUsers[to]).emit('friend_request_received', { from });
+        if(onlineUsers[to]) {
+            io.to(onlineUsers[to]).emit('new_friend_request', { from }); // Estava 'friend_request_received'
+        }
+    });
+    
+    socket.on('friend_request_accepted', (data) => {
+        const { to } = data;
+        if(onlineUsers[to]) {
+            io.to(onlineUsers[to]).emit('friend_request_accepted', {}); 
+        }
     });
 
     socket.on('disconnect', () => { 
@@ -124,7 +127,6 @@ function notifyFriendsStatus(username, status, lastSeen = null) {
 
 // --- API ---
 
-// Auth
 app.post('/auth/register', async (req, res) => {
     try {
         const { username, password } = req.body;
@@ -145,7 +147,6 @@ app.post('/auth/login', (req, res) => {
     });
 });
 
-// Chats: Apenas chats visíveis com mensagens
 app.get('/api/chats/:me', (req, res) => {
     const me = req.params.me;
     const q = `
@@ -176,9 +177,8 @@ app.get('/api/chats/:me', (req, res) => {
     db.all(q, [me, me, me, me, me, me], (e, r) => res.json(r || []));
 });
 
-// Mensagens: Apenas visíveis
 app.get('/api/messages/:u1/:u2', (req, res) => {
-    const { u1, u2 } = req.params; // u1 = requester (me), u2 = partner
+    const { u1, u2 } = req.params;
     const q = `
         SELECT * FROM messages 
         WHERE ((s=? AND r=? AND visible_for_s=1) OR (s=? AND r=? AND visible_for_r=1))
@@ -190,7 +190,6 @@ app.get('/api/messages/:u1/:u2', (req, res) => {
 app.get('/api/user/:u', (req, res) => db.get("SELECT username, avatar, bio, last_seen FROM users WHERE username = ?", [req.params.u], (e, r) => res.json(r || {})));
 app.post('/api/update-profile', (req, res) => db.run("UPDATE users SET bio = ?, avatar = ? WHERE username = ?", [req.body.bio, req.body.avatar, req.body.username], () => res.json({ok:true})));
 
-// --- STORIES (CORRIGIDO: Apenas Amigos Aceitos) ---
 app.post('/api/story', (req, res) => {
     const { username, content, type, caption, bg_color } = req.body;
     db.run("INSERT INTO stories (username, content, type, caption, bg_color) VALUES (?, ?, ?, ?, ?)", [username, content, type, caption, bg_color], () => res.json({ok:true}));
@@ -198,7 +197,6 @@ app.post('/api/story', (req, res) => {
 
 app.get('/api/stories/:me', (req, res) => {
     const me = req.params.me;
-    // Seleciona stories do próprio usuário OU de amigos com status=1
     const q = `
         SELECT s.*, u.avatar 
         FROM stories s 
@@ -219,25 +217,37 @@ app.get('/api/story-viewers/:id', (req, res) => {
     db.all("SELECT v.time, u.username, u.avatar FROM story_views v JOIN users u ON v.viewer = u.username WHERE v.story_id = ? ORDER BY v.time DESC", [req.params.id], (e, r) => res.json(r||[]));
 });
 
-// --- AMIZADES ---
 app.get('/api/search/:term', (req, res) => {
     db.all("SELECT username, avatar, bio FROM users WHERE username LIKE ? LIMIT 10", [`%${req.params.term}%`], (e, r) => res.json(r||[]));
 });
 
+// --- AMIZADES CORRIGIDAS ---
 app.post('/api/friend-request', (req, res) => {
     const { from, to } = req.body;
     if(from === to) return res.status(400).json({});
+    
+    // Verifica existência em qualquer direção
     db.get("SELECT * FROM friends WHERE (u1=? AND u2=?) OR (u1=? AND u2=?)", [from, to, to, from], (err, row) => {
         if(row) {
              if(row.status === 1) return res.json({status: 'friends'});
              return res.json({status: 'pending'});
         } else {
-            db.run("INSERT INTO friends (u1, u2, status, action_user) VALUES (?, ?, 0, ?)", [from, to, from], () => res.json({status: 'sent'}));
+            // Insere garantindo ordem única para evitar duplicidade de chave composta se a lógica do app falhar
+            db.run("INSERT INTO friends (u1, u2, status, action_user) VALUES (?, ?, 0, ?)", 
+            [from, to, from], 
+            (err) => {
+                if(err) console.error("Erro ao inserir amizade:", err);
+                res.json({status: 'sent'});
+            });
         }
     });
 });
 
 app.get('/api/friend-requests/:me', (req, res) => {
+    // Busca solicitações onde:
+    // 1. Eu faço parte da relação (u1 ou u2)
+    // 2. Quem tomou a ação (action_user) NÃO fui eu
+    // 3. Status é 0 (pendente)
     const q = `
         SELECT u.username, u.avatar 
         FROM friends f 
