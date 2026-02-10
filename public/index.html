@@ -3,32 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>WhatsApp Black</title>
+    <title>WhatsApp Black iOS</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- CONFIGURAÇÃO TEMA BLACK & RED --- */
+        /* --- TEMA BLACK & RED iOS PRO --- */
         :root { 
             --bg-app: #000000; 
-            --bg-header: #1C1C1E;
+            --bg-header: rgba(28, 28, 30, 0.85); /* Translúcido */
             --bg-item: #1C1C1E;
             --accent-color: #FF3B30; /* Vermelho iOS */
             --text-primary: #FFFFFF;
             --text-secondary: #8E8E93;
-            --bubble-me: #3E1010; /* Vermelho escuro para minhas msgs */
-            --bubble-them: #2C2C2E; /* Cinza para eles */
+            --bubble-me: #3E1010; 
+            --bubble-them: #2C2C2E;
             --separator: #38383A;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
         }
 
         body, html { height: 100%; width: 100%; overflow: hidden; background: var(--bg-app); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
         
-        /* Utilitários */
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-        .pt-safe { padding-top: env(safe-area-inset-top); }
-
-        /* Transições de Tela (Slide iOS) */
+        
+        /* Layout e Transições */
         .screen {
             position: absolute; inset: 0; background: var(--bg-app);
             transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
@@ -37,79 +36,92 @@
         .screen-hidden { transform: translateX(100%); z-index: 20; }
         .screen-active { transform: translateX(0); }
         
-        /* Chat Background Dark */
+        /* Headers iOS */
+        .ios-header {
+            background: var(--bg-header); backdrop-filter: saturate(180%) blur(20px);
+            border-bottom: 0.5px solid var(--separator);
+            padding-top: max(20px, var(--safe-top));
+            height: auto; min-height: 90px;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            position: sticky; top: 0; z-index: 50;
+        }
+        .ios-title-row { display: flex; align-items: center; justify-content: space-between; padding: 0 16px 12px 16px; }
+        .ios-large-title { font-size: 30px; font-weight: 700; letter-spacing: 0.3px; color: white; }
+
+        /* Chat Background */
         #chat-room { 
-            background-color: #0b0b0b; 
+            background-color: #050505; 
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-            background-blend-mode: overlay; /* Deixa o background escuro */
-            z-index: 50;
+            background-blend-mode: overlay;
         }
 
-        /* Balões */
-        .msg-row { display: flex; width: 100%; margin-bottom: 2px; padding: 0 10px; }
+        /* Mensagens */
+        .msg-row { display: flex; width: 100%; margin-bottom: 3px; padding: 0 12px; }
         .msg-bubble { 
-            max-width: 75%; padding: 6px 10px; font-size: 16px; 
-            border-radius: 8px; position: relative; line-height: 1.3;
+            max-width: 78%; padding: 6px 12px; font-size: 16px; 
+            border-radius: 8px; position: relative; line-height: 1.3; box-shadow: 0 1px 1px rgba(0,0,0,0.3);
         }
         .msg-me { justify-content: flex-end; }
-        .msg-me .msg-bubble { background: var(--bubble-me); color: white; border-radius: 18px 18px 4px 18px; }
+        .msg-me .msg-bubble { background: var(--bubble-me); color: white; border-radius: 16px 16px 2px 16px; }
         .msg-them { justify-content: flex-start; }
-        .msg-them .msg-bubble { background: var(--bubble-them); color: white; border-radius: 18px 18px 18px 4px; }
+        .msg-them .msg-bubble { background: var(--bubble-them); color: white; border-radius: 16px 16px 16px 2px; }
         
-        .msg-meta { font-size: 11px; color: rgba(255,255,255,0.5); display: flex; justify-content: flex-end; margin-top: 4px; gap: 4px; align-items: center; }
+        .msg-meta { font-size: 10px; color: rgba(255,255,255,0.6); display: flex; justify-content: flex-end; margin-top: 2px; gap: 4px; align-items: center; float: right; margin-left: 8px; }
         
-        /* Navegação */
-        .nav-item { color: #555; transition: color 0.2s; }
-        .nav-item.active { color: var(--accent-color); }
-        
-        /* Inputs Customizados */
-        .input-dark {
-            background: #2C2C2E; color: white; border: none; outline: none;
-        }
-        .search-bar { background: #1C1C1E; }
+        /* Animação Delete */
+        .delete-mode-btn { transform: translateX(-40px); transition: transform 0.3s ease; }
+        .editing .delete-mode-btn { transform: translateX(0); }
+        .chat-content { transform: translateX(0); transition: transform 0.3s ease; }
+        .editing .chat-content { transform: translateX(30px); }
+
+        /* Loader */
+        .animate-loader { animation: loader 2s infinite ease-in-out; }
+        @keyframes loader { 0% { width: 0; } 100% { width: 100%; } }
     </style>
 </head>
 <body>
 
     <div id="login-screen" class="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center p-8">
-        <div class="w-24 h-24 rounded-2xl flex items-center justify-center mb-6 border-2 border-[#FF3B30]">
+        <div class="w-24 h-24 rounded-2xl flex items-center justify-center mb-6 border-2 border-[#FF3B30] shadow-[0_0_15px_rgba(255,59,48,0.3)]">
             <i class="fa-brands fa-whatsapp text-[#FF3B30] text-5xl"></i>
         </div>
-        <h1 class="text-2xl font-bold mb-8 text-white">Login <span class="text-[#FF3B30]">Black</span></h1>
+        <h1 class="text-2xl font-bold mb-8 text-white tracking-tight">WhatsApp <span class="text-[#FF3B30]">PRO</span></h1>
         
         <div class="w-full max-w-sm space-y-4">
-            <input id="u_auth" type="text" placeholder="Usuário" class="w-full bg-[#1C1C1E] text-white p-4 rounded-xl outline-none focus:ring-1 focus:ring-red-500">
-            <input id="p_auth" type="password" placeholder="Senha" class="w-full bg-[#1C1C1E] text-white p-4 rounded-xl outline-none focus:ring-1 focus:ring-red-500">
+            <input id="u_auth" type="text" placeholder="Usuário" class="w-full bg-[#1C1C1E] text-white p-4 rounded-xl outline-none focus:ring-1 focus:ring-[#FF3B30] transition-all">
+            <input id="p_auth" type="password" placeholder="Senha" class="w-full bg-[#1C1C1E] text-white p-4 rounded-xl outline-none focus:ring-1 focus:ring-[#FF3B30] transition-all">
             
-            <button onclick="handleAuth('login')" class="w-full bg-[#FF3B30] active:bg-[#d63026] text-white py-4 rounded-xl font-bold text-lg">Entrar</button>
-            <button onclick="handleAuth('register')" class="w-full text-[#FF3B30] font-medium py-2">Criar conta</button>
+            <button onclick="handleAuth('login')" class="w-full bg-[#FF3B30] active:bg-[#d63026] text-white py-4 rounded-xl font-bold text-lg shadow-lg">Entrar</button>
+            <button onclick="handleAuth('register')" class="w-full text-[#FF3B30] font-medium py-2 text-sm">Criar conta nova</button>
         </div>
-        <p id="auth-error" class="text-red-500 mt-4 text-sm font-medium hidden"></p>
     </div>
 
     <div id="main-app" class="hidden h-full w-full relative">
         
         <div id="tab-chats" class="screen flex flex-col">
-            <header class="bg-[#1C1C1E] border-b border-[#38383A] pt-12 px-4 pb-3 flex justify-between items-end h-[100px] shrink-0 sticky top-0 z-20">
-                <button class="text-[#FF3B30] text-[17px] font-medium">Editar</button>
-                <h1 class="font-bold text-[20px] text-white">Conversas</h1>
-                <button onclick="openModal('new-chat-modal')" class="text-[#FF3B30]">
-                    <i class="fa-regular fa-pen-to-square text-xl"></i>
-                </button>
+            <header class="ios-header">
+                <div class="ios-title-row">
+                    <button id="btn-edit-chats" onclick="toggleEditMode()" class="text-[#FF3B30] text-[17px] font-medium active:opacity-60">Editar</button>
+                    <button onclick="openModal('new-chat-modal')" class="text-[#FF3B30] active:opacity-60">
+                        <i class="fa-regular fa-pen-to-square text-xl"></i>
+                    </button>
+                </div>
+                <div class="px-4 pb-2">
+                    <h1 class="ios-large-title">Conversas</h1>
+                </div>
+                <div class="px-4 pb-3">
+                    <div class="bg-[#1C1C1E] rounded-lg px-3 py-2 flex items-center gap-2">
+                        <i class="fa-solid fa-magnifying-glass text-gray-500 text-sm"></i>
+                        <input id="chat-search" oninput="filterChats()" placeholder="Pesquisar" class="bg-transparent w-full outline-none text-[15px] text-white placeholder-gray-500">
+                    </div>
+                </div>
             </header>
 
             <div class="flex-1 overflow-y-auto bg-black">
-                <div class="px-4 py-2">
-                    <div class="bg-[#1C1C1E] rounded-lg px-3 py-2 flex items-center gap-2">
-                        <i class="fa-solid fa-magnifying-glass text-gray-500"></i>
-                        <input placeholder="Pesquisar" class="bg-transparent w-full outline-none text-sm text-white placeholder-gray-500">
-                    </div>
-                </div>
-
-                <div id="friend-requests-bar" class="hidden px-4 py-3 border-b border-[#38383A] cursor-pointer bg-[#110505]" onclick="openModal('requests-modal')">
+                <div id="friend-requests-bar" class="hidden px-4 py-3 border-b border-[#38383A] cursor-pointer bg-[#150a0a]" onclick="openModal('requests-modal')">
                     <div class="flex justify-between items-center text-[#FF3B30]">
-                        <span class="font-medium">Solicitações de Amizade</span>
-                        <span id="req-count" class="bg-[#FF3B30] text-white text-xs font-bold px-2 py-0.5 rounded-full">0</span>
+                        <span class="font-medium text-sm">Solicitações de Amizade</span>
+                        <span id="req-count" class="bg-[#FF3B30] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">0</span>
                     </div>
                 </div>
 
@@ -118,102 +130,114 @@
         </div>
 
         <div id="tab-status" class="screen screen-hidden bg-black">
-            <header class="bg-[#1C1C1E] border-b border-[#38383A] pt-12 pb-3 px-4 h-[100px] flex items-end justify-center">
-                <h1 class="font-bold text-[17px] text-white">Status</h1>
+            <header class="ios-header">
+                <div class="ios-title-row pt-2">
+                    <button class="text-[#FF3B30] text-[17px] font-medium opacity-0">Voltar</button>
+                    <h1 class="text-[17px] font-bold text-white">Status</h1>
+                    <div class="w-8"></div>
+                </div>
             </header>
-            <div class="p-4">
-                <div class="flex items-center gap-4 mb-8 cursor-pointer relative" onclick="document.getElementById('status_file').click()">
+            <div class="p-4 overflow-y-auto flex-1">
+                <div class="flex items-center gap-4 mb-8 cursor-pointer relative" onclick="handleStatusClick()">
                     <div class="relative">
-                        <img id="my_status_pic" class="w-14 h-14 rounded-full object-cover border border-[#38383A]">
-                        <div class="absolute bottom-0 right-0 bg-[#FF3B30] text-white w-5 h-5 rounded-full flex items-center justify-center text-xs border-2 border-black">+</div>
+                        <img id="my_status_pic" class="w-14 h-14 rounded-full object-cover border-2 border-[#2C2C2E]">
+                        <div class="absolute bottom-0 right-0 bg-[#FF3B30] text-white w-5 h-5 rounded-full flex items-center justify-center text-xs border-2 border-black">
+                            <i class="fa-solid fa-plus text-[10px]"></i>
+                        </div>
                     </div>
                     <div>
-                        <h3 class="font-bold text-white">Meu Status</h3>
-                        <p class="text-gray-500 text-sm">Adicionar ao meu status</p>
+                        <h3 class="font-bold text-white text-[16px]">Meu Status</h3>
+                        <p class="text-gray-500 text-[14px]">Adicionar ao meu status</p>
                     </div>
-                    <input type="file" id="status_file" hidden accept="image/*" onchange="postStatus(event)">
+                    <input type="file" id="status_file_input" hidden accept="image/*" onchange="openStatusPreview(event)">
                 </div>
 
-                <div class="text-xs font-bold text-gray-500 uppercase mb-4">Atualizações Recentes</div>
-                <div id="status-list" class="space-y-6"></div>
+                <div class="text-[13px] font-bold text-gray-500 uppercase mb-3 px-1">Atualizações Recentes</div>
+                <div id="status-list" class="space-y-1"></div>
             </div>
         </div>
 
         <div id="tab-settings" class="screen screen-hidden bg-black">
-            <header class="bg-[#1C1C1E] border-b border-[#38383A] pt-12 pb-3 px-4 h-[100px] flex items-end justify-center">
-                <h1 class="font-bold text-[17px] text-white">Ajustes</h1>
+            <header class="ios-header">
+                <div class="ios-title-row pt-2">
+                    <div class="w-8"></div>
+                    <h1 class="text-[17px] font-bold text-white">Ajustes</h1>
+                    <div class="w-8"></div>
+                </div>
             </header>
-            <div class="mt-8">
-                <div class="bg-[#1C1C1E] border-y border-[#38383A] flex items-center p-4 gap-4" onclick="document.getElementById('avatar_file').click()">
+            <div class="flex-1 overflow-y-auto pt-4">
+                <div class="bg-[#1C1C1E] border-y border-[#38383A] flex items-center p-4 gap-4 active:bg-[#2C2C2E]" onclick="document.getElementById('avatar_file').click()">
                     <img id="settings_avatar" class="w-16 h-16 rounded-full bg-gray-700 object-cover">
                     <div class="flex-1">
                         <h2 id="settings_name" class="text-xl font-semibold text-white">User</h2>
-                        <p class="text-gray-500 text-sm">Toque para mudar foto</p>
+                        <p class="text-gray-500 text-[14px]">Toque para mudar foto</p>
                     </div>
                     <input type="file" id="avatar_file" hidden accept="image/*" onchange="updateProfilePic(event)">
                 </div>
                 
                 <div class="mt-8 bg-[#1C1C1E] border-y border-[#38383A] px-4">
                     <div class="py-3">
-                        <label class="text-xs text-[#FF3B30] font-bold uppercase">Recado</label>
-                        <input id="settings_bio" class="w-full mt-1 text-[17px] outline-none bg-transparent text-white" onblur="saveBio(this.value)">
+                        <label class="text-[13px] text-[#FF3B30] font-bold uppercase">Recado</label>
+                        <input id="settings_bio" class="w-full mt-1 text-[17px] outline-none bg-transparent text-white placeholder-gray-600" onblur="saveBio(this.value)">
                     </div>
                 </div>
 
                 <div class="mt-8">
-                    <button onclick="logout()" class="w-full bg-[#1C1C1E] p-4 text-[#FF3B30] text-lg border-y border-[#38383A] font-medium">Sair</button>
+                    <button onclick="logout()" class="w-full bg-[#1C1C1E] p-4 text-[#FF3B30] text-[17px] border-y border-[#38383A] font-medium text-center active:bg-[#2C2C2E]">
+                        Sair do WhatsApp
+                    </button>
                 </div>
             </div>
         </div>
 
-        <nav class="absolute bottom-0 w-full bg-[#1C1C1E]/95 backdrop-blur border-t border-[#38383A] h-[83px] flex justify-around pt-2 pb-safe z-40">
-            <button onclick="switchTab('status')" id="btn-status" class="nav-item flex flex-col items-center gap-1 w-16">
-                <i class="fa-regular fa-circle-dot text-2xl mb-0.5"></i>
+        <nav class="absolute bottom-0 w-full bg-[rgba(28,28,30,0.9)] backdrop-blur-xl border-t border-[#38383A] pb-[max(20px,var(--safe-bottom))] pt-2 flex justify-around z-40">
+            <button onclick="switchTab('status')" id="btn-status" class="nav-item flex flex-col items-center gap-1 w-16 text-[#8E8E93]">
+                <i class="fa-regular fa-circle-dot text-[24px] mb-0.5"></i>
                 <span class="text-[10px] font-medium">Status</span>
             </button>
-            <button onclick="switchTab('chats')" id="btn-chats" class="nav-item active flex flex-col items-center gap-1 w-16">
-                <i class="fa-brands fa-whatsapp text-2xl mb-0.5"></i>
+            <button onclick="switchTab('chats')" id="btn-chats" class="nav-item text-[#FF3B30] flex flex-col items-center gap-1 w-16">
+                <i class="fa-solid fa-comment text-[24px] mb-0.5"></i>
                 <span class="text-[10px] font-medium">Conversas</span>
             </button>
-            <button onclick="switchTab('settings')" id="btn-settings" class="nav-item flex flex-col items-center gap-1 w-16">
-                <i class="fa-solid fa-gear text-2xl mb-0.5"></i>
+            <button onclick="switchTab('settings')" id="btn-settings" class="nav-item text-[#8E8E93] flex flex-col items-center gap-1 w-16">
+                <i class="fa-solid fa-gear text-[24px] mb-0.5"></i>
                 <span class="text-[10px] font-medium">Ajustes</span>
             </button>
         </nav>
 
-        <div id="chat-room" class="screen screen-hidden flex flex-col h-full">
-            <header class="bg-[#1C1C1E]/95 backdrop-blur border-b border-[#38383A] pt-safe-top h-[100px] flex items-end px-2 pb-2 shrink-0 z-50 shadow-sm">
-                <button onclick="closeChat()" class="flex items-center text-[#FF3B30] pr-2 pb-2 h-10 z-10">
+        <div id="chat-room" class="screen screen-hidden flex flex-col h-full z-50">
+            <header class="bg-[rgba(28,28,30,0.9)] backdrop-blur-md border-b border-[#38383A] pt-[max(10px,var(--safe-top))] pb-2 flex items-center justify-between px-2 shrink-0 z-50">
+                <button onclick="closeChat()" class="flex items-center text-[#FF3B30] h-10 px-2 rounded active:opacity-50 z-20">
                     <i class="fa-solid fa-chevron-left text-xl mr-1"></i>
-                    <span class="text-[17px]">Voltar</span>
+                    <span class="text-[17px] font-medium">Voltar</span>
                 </button>
-                <div class="absolute inset-x-0 bottom-2 flex flex-col items-center justify-center cursor-pointer pointer-events-none">
+                
+                <div class="flex flex-col items-center justify-center cursor-pointer absolute left-0 right-0 pointer-events-none">
                     <div class="flex flex-col items-center pointer-events-auto" onclick="openContactInfo()">
                         <h3 id="chat_name" class="font-semibold text-[16px] leading-tight text-white">--</h3>
-                        <span id="chat_status" class="text-[12px] text-gray-400 leading-tight h-4">Offline</span>
+                        <span id="chat_status" class="text-[11px] text-gray-400 font-medium leading-tight mt-0.5">Offline</span>
                     </div>
                 </div>
-                <div class="flex-1 flex justify-end pb-2 pr-2">
-                    <img id="chat_avatar_header" class="w-9 h-9 rounded-full bg-gray-700 object-cover border border-[#38383A]">
-                </div>
+                
+                <img id="chat_avatar_header" class="w-9 h-9 rounded-full bg-gray-700 object-cover border border-[#38383A] z-20">
             </header>
 
-            <div id="msg-container" class="flex-1 overflow-y-auto p-4 pb-4"></div>
+            <div id="msg-container" class="flex-1 overflow-y-auto p-4 pb-4 bg-transparent"></div>
 
-            <div class="bg-[#1C1C1E] border-t border-[#38383A] px-2 py-2 flex items-end gap-2 pb-safe shrink-0 z-50">
-                <button onclick="document.getElementById('media_input').click()" class="text-[#FF3B30] p-2 mb-1">
+            <div class="bg-[#1C1C1E] border-t border-[#38383A] px-2 py-2 flex items-end gap-2 pb-[max(10px,var(--safe-bottom))] shrink-0 z-50">
+                <button onclick="document.getElementById('media_input').click()" class="text-[#FF3B30] p-2 mb-1 active:opacity-60">
                     <i class="fa-solid fa-plus text-xl"></i>
                 </button>
-                <input type="file" id="media_input" hidden accept="image/*,video/*" onchange="handleMediaSend(event)">
+                <input type="file" id="media_input" hidden accept="image/*" onchange="handleMediaSend(event)">
 
-                <div class="flex-1 bg-[#2C2C2E] rounded-2xl min-h-[36px] flex items-center px-3 py-1 mb-1">
-                    <input id="chat-input" class="w-full bg-transparent outline-none text-[16px] text-white max-h-24 py-1" placeholder="" onkeydown="handleInputKey(event)" oninput="handleTypingInput()">
+                <div class="flex-1 bg-[#2C2C2E] rounded-2xl min-h-[36px] flex items-center px-3 py-1 mb-1 border border-[#38383A]">
+                    <input id="chat-input" class="w-full bg-transparent outline-none text-[16px] text-white max-h-24 py-1 placeholder-gray-500" placeholder="" onkeydown="handleInputKey(event)" oninput="handleTypingInput()">
                 </div>
                 
-                <button onclick="sendMessage()" id="send-btn" class="bg-[#FF3B30] rounded-full w-9 h-9 flex items-center justify-center text-white mb-1 hidden transition-all">
-                    <i class="fa-solid fa-paper-plane text-sm"></i>
+                <button onclick="sendMessage()" id="send-btn" class="bg-[#FF3B30] rounded-full w-9 h-9 flex items-center justify-center text-white mb-1 hidden transition-transform active:scale-90">
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
                 </button>
-                <button onclick="toggleMic()" id="mic-btn" class="text-[#FF3B30] p-2 mb-1 transition-all">
+                <button onclick="toggleMic()" id="mic-btn" class="text-[#FF3B30] p-2 mb-1 active:opacity-60">
                     <i class="fa-solid fa-microphone text-lg"></i>
                 </button>
             </div>
@@ -221,17 +245,56 @@
 
     </div>
 
-    <div id="story-viewer" class="fixed inset-0 z-[300] hidden bg-black flex flex-col">
-        <div class="h-1 bg-gray-700 w-full flex mb-2 mt-safe-top px-2">
-            <div class="h-full bg-white w-full animate-loader"></div>
+    <div id="status-preview-modal" class="fixed inset-0 z-[250] bg-black hidden flex-col">
+        <div class="relative flex-1 flex items-center justify-center bg-black">
+            <img id="status-preview-img" class="max-w-full max-h-full object-contain">
+            <button onclick="closeStatusPreview()" class="absolute top-10 left-4 w-10 h-10 bg-black/50 rounded-full text-white flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
         </div>
-        <div class="flex-1 flex items-center justify-center relative">
+        <div class="bg-black/80 p-4 pb-[max(20px,var(--safe-bottom))] w-full flex items-center gap-2 border-t border-[#38383A]">
+            <input id="status-caption" class="flex-1 bg-[#2C2C2E] text-white rounded-full px-4 py-3 outline-none" placeholder="Adicione uma legenda...">
+            <button onclick="uploadStatus()" class="bg-[#FF3B30] w-12 h-12 rounded-full text-white flex items-center justify-center">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <div id="story-viewer" class="fixed inset-0 z-[300] hidden bg-black flex flex-col">
+        <div class="h-1 bg-gray-700 w-full flex mb-2 mt-[var(--safe-top)] px-2 absolute top-0 z-20">
+            <div id="story-bar" class="h-full bg-white w-0"></div>
+        </div>
+        
+        <div class="flex-1 flex items-center justify-center relative bg-black">
             <img id="story-img" class="max-h-full max-w-full object-contain">
-            <div class="absolute top-4 left-4 flex items-center gap-2">
+            
+            <div class="absolute top-6 left-4 flex items-center gap-2 z-10">
                 <img id="story-avatar" class="w-10 h-10 rounded-full border border-white">
-                <span id="story-user" class="text-white font-bold shadow-black drop-shadow-md">User</span>
+                <div class="flex flex-col">
+                    <span id="story-user" class="text-white font-bold text-sm shadow-black drop-shadow-md">User</span>
+                    <span id="story-time" class="text-gray-200 text-xs shadow-black drop-shadow-md"></span>
+                </div>
             </div>
-            <button onclick="document.getElementById('story-viewer').classList.add('hidden')" class="absolute top-4 right-4 text-white text-3xl">&times;</button>
+            
+            <div id="story-caption-display" class="absolute bottom-20 inset-x-0 text-center text-white bg-black/40 p-2 hidden"></div>
+
+            <button onclick="closeStoryViewer()" class="absolute top-6 right-4 text-white text-3xl z-20 opacity-80">&times;</button>
+        </div>
+
+        <div id="story-viewers-btn" class="absolute bottom-[max(20px,var(--safe-bottom))] left-0 right-0 flex flex-col items-center pb-4 cursor-pointer hidden" onclick="toggleViewersList()">
+            <i class="fa-solid fa-chevron-up text-white mb-1 animate-bounce"></i>
+            <div class="flex items-center gap-2 text-white font-bold bg-[#1C1C1E]/80 px-4 py-1 rounded-full">
+                <i class="fa-solid fa-eye text-[#FF3B30]"></i>
+                <span id="views-count">0</span>
+            </div>
+        </div>
+
+        <div id="viewers-sheet" class="absolute inset-x-0 bottom-0 top-1/2 bg-[#1C1C1E] rounded-t-2xl transform translate-y-full transition-transform duration-300 z-50 flex flex-col">
+            <div class="flex justify-between items-center p-4 border-b border-[#38383A]">
+                <span class="text-white font-bold">Visto por</span>
+                <button onclick="toggleViewersList()" class="text-[#FF3B30]">Fechar</button>
+            </div>
+            <div id="viewers-list-content" class="overflow-y-auto flex-1 p-4"></div>
         </div>
     </div>
 
@@ -244,22 +307,10 @@
             </div>
             <div class="p-4">
                 <div class="flex gap-2">
-                    <input id="search-user-input" placeholder="Buscar usuário..." class="flex-1 bg-[#2C2C2E] text-white p-3 rounded-xl outline-none">
+                    <input id="search-user-input" placeholder="Buscar usuário..." class="flex-1 bg-[#2C2C2E] text-white p-3 rounded-xl outline-none placeholder-gray-500">
                     <button onclick="searchUsers()" class="bg-[#FF3B30] text-white px-6 rounded-xl font-bold">Buscar</button>
                 </div>
                 <div id="search-results" class="mt-6 divide-y divide-[#38383A]"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="contact-info-modal" class="fixed inset-0 z-[200] hidden bg-black/70" onclick="this.classList.add('hidden')">
-        <div class="absolute inset-x-0 bottom-0 bg-[#1C1C1E] rounded-t-2xl p-6 flex flex-col items-center pb-safe border-t border-[#FF3B30]" onclick="event.stopPropagation()">
-            <img id="info_avatar" class="w-24 h-24 rounded-full bg-gray-700 object-cover mb-4 border-2 border-[#FF3B30]">
-            <h2 id="info_name" class="text-2xl font-bold mb-1 text-white">Nome</h2>
-            <p id="info_seen" class="text-[#FF3B30] text-sm mb-4 font-medium">--</p>
-            <div class="w-full bg-[#2C2C2E] rounded-xl p-4 mb-4">
-                <span class="text-xs text-gray-400 uppercase font-bold">Recado</span>
-                <p id="info_bio" class="text-white mt-1">Sem recado.</p>
             </div>
         </div>
     </div>
@@ -275,11 +326,26 @@
         </div>
     </div>
 
+    <div id="contact-info-modal" class="fixed inset-0 z-[200] hidden bg-black/70 backdrop-blur-sm" onclick="this.classList.add('hidden')">
+        <div class="absolute inset-x-0 bottom-0 bg-[#1C1C1E] rounded-t-2xl p-6 flex flex-col items-center pb-[max(30px,var(--safe-bottom))] border-t border-[#FF3B30]" onclick="event.stopPropagation()">
+            <img id="info_avatar" class="w-24 h-24 rounded-full bg-gray-700 object-cover mb-4 border-2 border-[#FF3B30]">
+            <h2 id="info_name" class="text-2xl font-bold mb-1 text-white">Nome</h2>
+            <p id="info_seen" class="text-[#FF3B30] text-sm mb-4 font-medium">--</p>
+            <div class="w-full bg-[#2C2C2E] rounded-xl p-4 mb-4">
+                <span class="text-xs text-gray-400 uppercase font-bold">Recado</span>
+                <p id="info_bio" class="text-white mt-1 text-[16px]">Sem recado.</p>
+            </div>
+        </div>
+    </div>
+
     <script>
         const socket = io();
         let currentUser = null;
         let activeChat = null;
         let typingTimeout = null;
+        let isEditingChats = false;
+        let currentStatusPreview = null; // base64 da imagem
+        let storyTimer = null;
 
         // --- INIT ---
         window.onload = () => {
@@ -301,7 +367,7 @@
         async function handleAuth(type) {
             const u = document.getElementById('u_auth').value.trim();
             const p = document.getElementById('p_auth').value.trim();
-            if (!u || !p) return alert("Preencha tudo");
+            if (!u || !p) return alert("Preencha todos os campos");
 
             const endpoint = type === 'login' ? '/auth/login' : '/auth/register';
             const res = await fetch(endpoint, {
@@ -311,14 +377,14 @@
 
             if (res.ok) {
                 if (type === 'register') {
-                    alert("Conta criada! Entre agora.");
+                    alert("Conta criada com sucesso! Faça login.");
                     handleAuth('login');
                 } else {
                     currentUser = await res.json();
                     localStorage.setItem('whats_black_user', JSON.stringify(currentUser));
                     initializeAfterAuth();
                 }
-            } else alert("Erro de autenticação");
+            } else alert("Erro: Verifique credenciais ou nome de usuário.");
         }
 
         function initializeAfterAuth() {
@@ -347,12 +413,33 @@
                 loadChatList();
             });
 
+            // Atualização de Status da Mensagem (Ticks)
+            socket.on('msgs_read_update', (data) => {
+                // Se eu estou com o chat aberto com quem leu, atualizo visualmente
+                if (activeChat === data.reader) {
+                   const ticks = document.querySelectorAll('.tick-icon');
+                   ticks.forEach(icon => {
+                       icon.className = 'fa-solid fa-check-double text-[#FF3B30] text-[10px] tick-icon';
+                   });
+                }
+                // Recarrega lista para atualizar preview
+                loadChatList();
+            });
+
+            socket.on('msg_sent_ok', (msg) => {
+                // Atualiza ID ou status da msg enviada localmente se necessário
+                loadChatList();
+            });
+
             socket.on('typing_status', (data) => {
                 if (activeChat === data.from) {
                     const el = document.getElementById('chat_status');
-                    el.innerText = data.isTyping ? "digitando..." : "Online";
-                    el.style.color = data.isTyping ? "#FF3B30" : "#8E8E93";
-                    if(!data.isTyping) socket.emit('get_status_detailed', activeChat);
+                    if(data.isTyping) {
+                        el.innerText = "digitando...";
+                        el.style.color = "#FF3B30";
+                    } else {
+                        socket.emit('get_status_detailed', activeChat);
+                    }
                 }
             });
 
@@ -363,53 +450,93 @@
             socket.on('contact_status_update', (data) => {
                 if (activeChat === data.username) updateHeaderStatus(data);
             });
+
+            socket.on('chat_deleted_ok', () => {
+                loadChatList();
+            });
         }
 
         function updateHeaderStatus(data) {
             const el = document.getElementById('chat_status');
             if(data.status === 'online') {
                 el.innerText = 'Online';
-                el.className = 'text-[12px] text-[#FF3B30] font-bold leading-tight h-4';
+                el.className = 'text-[11px] text-[#FF3B30] font-bold leading-tight mt-0.5';
             } else {
                 const date = new Date(data.last_seen);
-                const timeStr = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const timeStr = isNaN(date.getTime()) ? '--:--' : date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 el.innerText = `Visto hoje às ${timeStr}`;
-                el.className = 'text-[12px] text-gray-500 leading-tight h-4';
+                el.className = 'text-[11px] text-gray-500 font-medium leading-tight mt-0.5';
             }
         }
 
-        // --- CHATS ---
+        // --- CHATS & DELETE ---
         async function loadChatList() {
             const chats = await api(`/api/chats/${currentUser.username}`);
             const list = document.getElementById('chat-list');
             list.innerHTML = '';
             
             if(!chats || chats.length === 0) {
-                list.innerHTML = '<div class="text-center text-gray-600 mt-10">Sem conversas</div>'; return;
+                list.innerHTML = '<div class="text-center text-gray-600 mt-10 text-sm">Você não tem conversas ativas.</div>'; return;
             }
 
             chats.forEach(chat => {
                 const avatar = chat.avatar || `https://ui-avatars.com/api/?name=${chat.contact}&background=random`;
                 const unread = chat.unread > 0 
-                    ? `<div class="bg-[#FF3B30] text-white text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">${chat.unread}</div>` 
+                    ? `<div class="bg-[#FF3B30] text-white text-[10px] font-bold min-w-[20px] h-5 flex items-center justify-center rounded-full px-1">${chat.unread}</div>` 
                     : '';
                 
-                list.innerHTML += `
-                    <div onclick="openChat('${chat.contact}', '${avatar}')" class="flex items-center gap-3 py-3 pr-4 cursor-pointer hover:bg-[#111]">
-                        <img src="${avatar}" class="w-14 h-14 rounded-full object-cover">
-                        <div class="flex-1 min-w-0">
+                // Formatação dos ticks no preview da lista
+                let tickIcon = '';
+                if(chat.last_sender === currentUser.username) {
+                    if(chat.last_status == 2) tickIcon = '<i class="fa-solid fa-check-double text-[#FF3B30] text-[10px] mr-1"></i>';
+                    else if(chat.last_status == 1) tickIcon = '<i class="fa-solid fa-check-double text-gray-500 text-[10px] mr-1"></i>';
+                    else tickIcon = '<i class="fa-solid fa-check text-gray-500 text-[10px] mr-1"></i>';
+                }
+
+                const lastMsgText = chat.last_type === 'image' ? '<i class="fa-solid fa-camera mr-1"></i> Foto' : (chat.last_msg || '');
+
+                const item = document.createElement('div');
+                item.className = `flex items-center py-3 pr-4 cursor-pointer hover:bg-[#1C1C1E] transition-colors relative overflow-hidden ${isEditingChats ? 'editing' : ''}`;
+                
+                item.innerHTML = `
+                    <div class="delete-mode-btn absolute left-2 top-0 bottom-0 flex items-center z-20">
+                        <button onclick="deleteChat('${chat.contact}')" class="w-6 h-6 bg-[#FF3B30] rounded-full flex items-center justify-center text-white">
+                            <i class="fa-solid fa-minus"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="chat-content flex items-center gap-3 w-full" onclick="if(!isEditingChats) openChat('${chat.contact}', '${avatar}')">
+                        <img src="${avatar}" class="w-14 h-14 rounded-full object-cover shrink-0">
+                        <div class="flex-1 min-w-0 border-b border-[#38383A] pb-3 ml-2">
                             <div class="flex justify-between items-baseline">
-                                <h3 class="font-bold text-white text-[17px]">${chat.contact}</h3>
-                                <span class="text-[14px] ${chat.unread ? 'text-[#FF3B30]' : 'text-gray-500'}">${formatTime(chat.last_time)}</span>
+                                <h3 class="font-bold text-white text-[16px]">${chat.contact}</h3>
+                                <span class="text-[14px] ${chat.unread ? 'text-[#FF3B30]' : 'text-[#8E8E93]'}">${formatTime(chat.last_time)}</span>
                             </div>
-                            <div class="flex justify-between items-center mt-1">
-                                <p class="text-gray-400 text-[15px] truncate flex-1">${chat.last_msg || 'Nova conversa'}</p>
+                            <div class="flex justify-between items-center mt-0.5">
+                                <p class="text-[#8E8E93] text-[15px] truncate flex-1 leading-tight">
+                                    ${tickIcon} ${lastMsgText}
+                                </p>
                                 ${unread}
                             </div>
                         </div>
                     </div>
                 `;
+                list.appendChild(item);
             });
+        }
+
+        function toggleEditMode() {
+            isEditingChats = !isEditingChats;
+            const btn = document.getElementById('btn-edit-chats');
+            btn.innerText = isEditingChats ? 'OK' : 'Editar';
+            btn.style.fontWeight = isEditingChats ? 'bold' : 'normal';
+            loadChatList(); // Recarrega para aplicar a classe .editing
+        }
+
+        function deleteChat(partner) {
+            if(confirm(`Apagar conversa com ${partner}?`)) {
+                socket.emit('delete_chat', { me: currentUser.username, partner });
+            }
         }
 
         async function openChat(username, avatar) {
@@ -444,17 +571,24 @@
             const container = document.getElementById('msg-container');
             
             let content = `<span class="break-words whitespace-pre-wrap">${msg.c}</span>`;
-            if (msg.type === 'image') content = `<img src="${msg.c}" class="rounded-lg max-w-full">`;
-            if (msg.type === 'audio') content = `<audio src="${msg.c}" controls class="h-8 w-[200px]"></audio>`;
+            if (msg.type === 'image') content = `<img src="${msg.c}" class="rounded-lg max-w-full block mb-1">`;
+            
+            // Lógica dos Ticks
+            let statusIcon = '';
+            if(isMe) {
+                if(msg.status == 2) statusIcon = '<i class="fa-solid fa-check-double text-[#FF3B30] text-[10px] tick-icon"></i>'; // Lido (Vermelho no tema)
+                else if(msg.status == 1) statusIcon = '<i class="fa-solid fa-check-double text-gray-500 text-[10px] tick-icon"></i>'; // Entregue
+                else statusIcon = '<i class="fa-solid fa-check text-gray-500 text-[10px] tick-icon"></i>'; // Enviado
+            }
 
             const div = document.createElement('div');
             div.className = `msg-row ${isMe ? 'msg-me' : 'msg-them'}`;
             div.innerHTML = `
-                <div class="msg-bubble shadow-sm">
+                <div class="msg-bubble">
                     ${content}
                     <div class="msg-meta">
-                        ${new Date(msg.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                        ${isMe ? '<i class="fa-solid fa-check-double text-[#FF3B30]"></i>' : ''}
+                        ${formatTime(msg.time)}
+                        ${statusIcon}
                     </div>
                 </div>
             `;
@@ -468,13 +602,14 @@
 
             const payload = { s: currentUser.username, r: activeChat, c: txt, type: 'text' };
             socket.emit('send_msg', payload);
-            renderMessage({...payload, time: new Date(), status: 0});
+            // Renderiza provisório com status 0
+            renderMessage({...payload, time: new Date().toISOString(), status: 0});
             scrollToBottom();
             input.value = '';
             handleTypingInput();
         }
 
-        // --- TYPING & UTILS ---
+        function handleInputKey(e) { if(e.key === 'Enter') sendMessage(); }
         function handleTypingInput() {
             const val = document.getElementById('chat-input').value;
             const hasText = val.length > 0;
@@ -487,79 +622,210 @@
                 typingTimeout = setTimeout(() => socket.emit('typing', { to: activeChat, isTyping: false }), 2000);
             }
         }
+        function scrollToBottom() { const c = document.getElementById('msg-container'); c.scrollTop = c.scrollHeight; }
+
+        // --- STATUS SYSTEM (CORRIGIDO) ---
         
-        function scrollToBottom() {
-            const c = document.getElementById('msg-container');
-            c.scrollTop = c.scrollHeight;
+        function handleStatusClick() {
+            // Se eu tiver um status postado nas ultimas 24h, mostrar ele. Se não, abrir camera.
+            // Para simplificar a UX deste clone, clica no '+' abre camera, clica no texto abre lista.
+            // Aqui vamos forçar abrir input ao clicar no icone +
+             document.getElementById('status_file_input').click();
         }
 
-        // --- STATUS / STORIES (FIXED) ---
+        // 1. Preview e Legenda
+        function openStatusPreview(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const r = new FileReader();
+            r.onload = () => {
+                currentStatusPreview = r.result;
+                document.getElementById('status-preview-img').src = currentStatusPreview;
+                document.getElementById('status-preview-modal').classList.remove('hidden');
+                document.getElementById('status-preview-modal').classList.add('flex');
+                document.getElementById('status-caption').value = '';
+                document.getElementById('status-caption').focus();
+            };
+            r.readAsDataURL(file);
+        }
+
+        function closeStatusPreview() {
+            document.getElementById('status-preview-modal').classList.add('hidden');
+            document.getElementById('status-preview-modal').classList.remove('flex');
+            document.getElementById('status_file_input').value = null;
+            currentStatusPreview = null;
+        }
+
+        // 2. Upload
+        async function uploadStatus() {
+            if(!currentStatusPreview) return;
+            const caption = document.getElementById('status-caption').value;
+            
+            await api('/api/story', 'POST', {
+                username: currentUser.username,
+                content: currentStatusPreview,
+                type: 'image',
+                caption: caption,
+                bg_color: '#000000'
+            });
+            
+            closeStatusPreview();
+            loadStatus();
+        }
+
+        // 3. Listagem
         async function loadStatus() {
             const list = document.getElementById('status-list');
-            list.innerHTML = '<div class="text-gray-500 text-center">Carregando...</div>';
             
             const stories = await api(`/api/stories/${currentUser.username}`);
             list.innerHTML = '';
 
             if(!stories || stories.length === 0) {
-                list.innerHTML = '<div class="text-gray-600 text-center text-sm py-4">Nenhum status recente.</div>';
+                list.innerHTML = '<div class="text-[#8E8E93] text-center text-sm py-4">Nenhuma atualização recente.</div>';
                 return;
             }
 
-            // Agrupa stories por usuário visualmente
+            // Agrupa stories. API já filtra amigos.
             const uniqueUsers = {};
             stories.forEach(s => {
-                if(!uniqueUsers[s.username]) uniqueUsers[s.username] = s;
+                // Guarda apenas o ultimo story para o preview da lista
+                if(!uniqueUsers[s.username]) uniqueUsers[s.username] = s; 
             });
 
             Object.values(uniqueUsers).forEach(s => {
+                const isMe = s.username === currentUser.username;
                 const avatar = s.avatar || `https://ui-avatars.com/api/?name=${s.username}`;
-                // Quando clicar, abre o visualizador com a imagem do story
+                
                 const item = document.createElement('div');
-                item.className = "flex items-center gap-3 py-2 cursor-pointer";
-                item.onclick = () => openStoryViewer(s.content, s.username, avatar);
+                item.className = "flex items-center gap-3 py-2 cursor-pointer active:bg-[#1C1C1E] px-2 rounded-lg transition-colors";
+                item.onclick = () => openStoryViewer(s.username, avatar); // Abre viewer para esse usuario
+                
                 item.innerHTML = `
-                    <div class="p-[2px] rounded-full border-2 border-[#FF3B30]">
-                        <img src="${avatar}" class="w-14 h-14 rounded-full object-cover border-2 border-black">
+                    <div class="p-[2px] rounded-full border-2 border-[#FF3B30] ${isMe ? 'border-dashed' : ''}">
+                        <img src="${avatar}" class="w-12 h-12 rounded-full object-cover border-2 border-black">
                     </div>
-                    <div>
-                        <h3 class="font-bold text-white">${s.username}</h3>
-                        <p class="text-xs text-gray-500">${formatTime(s.time)}</p>
+                    <div class="border-b border-[#38383A] flex-1 pb-3 pt-1">
+                        <h3 class="font-bold text-white text-[16px]">${isMe ? 'Meu Status' : s.username}</h3>
+                        <p class="text-[13px] text-[#8E8E93]">${formatTime(s.time)}</p>
                     </div>
                 `;
+                
+                // Se for "eu", coloca no topo, mas a API ja ordena por tempo. Vamos deixar natural.
                 list.appendChild(item);
             });
         }
 
-        async function postStatus(e) {
-            const file = e.target.files[0];
-            if(!file) return;
+        // 4. Viewer Complexo
+        let currentStoryIndex = 0;
+        let currentStoryList = [];
+        let storyViewerActive = false;
+
+        async function openStoryViewer(targetUsername, avatarUrl) {
+            // Pega todos os stories (a API retorna todos ordenados por tempo)
+            const allStories = await api(`/api/stories/${currentUser.username}`);
+            // Filtra apenas do usuário clicado
+            currentStoryList = allStories.filter(s => s.username === targetUsername);
             
-            const reader = new FileReader();
-            reader.onload = async () => {
-                // Envia para o servidor
-                await api('/api/story', 'POST', {
-                    username: currentUser.username,
-                    content: reader.result, // Base64 da imagem
-                    type: 'image',
-                    caption: '',
-                    bg_color: '#000000'
-                });
-                alert("Status publicado!");
-                loadStatus(); // Recarrega lista
-            };
-            reader.readAsDataURL(file);
+            if(currentStoryList.length === 0) return;
+
+            currentStoryIndex = 0;
+            storyViewerActive = true;
+            document.getElementById('story-viewer').classList.remove('hidden');
+            
+            showStorySlide(targetUsername, avatarUrl);
         }
 
-        function openStoryViewer(imgSrc, username, avatar) {
-            const viewer = document.getElementById('story-viewer');
-            document.getElementById('story-img').src = imgSrc;
-            document.getElementById('story-user').innerText = username;
-            document.getElementById('story-avatar').src = avatar;
-            viewer.classList.remove('hidden');
+        function showStorySlide(username, avatarUrl) {
+            if(currentStoryIndex >= currentStoryList.length) {
+                closeStoryViewer();
+                return;
+            }
             
-            // Auto close after 5s
-            setTimeout(() => viewer.classList.add('hidden'), 5000);
+            const s = currentStoryList[currentStoryIndex];
+            document.getElementById('story-img').src = s.content;
+            document.getElementById('story-user').innerText = username;
+            document.getElementById('story-avatar').src = avatarUrl;
+            document.getElementById('story-time').innerText = formatTime(s.time);
+            
+            // Legenda
+            const capEl = document.getElementById('story-caption-display');
+            if(s.caption) {
+                capEl.innerText = s.caption;
+                capEl.classList.remove('hidden');
+            } else {
+                capEl.classList.add('hidden');
+            }
+
+            // Log View se não for eu
+            if(username !== currentUser.username) {
+                api('/api/view-story', 'POST', { id: s.id, viewer: currentUser.username });
+                document.getElementById('story-viewers-btn').classList.add('hidden');
+            } else {
+                // É meu story: Habilita botão de ver quem viu
+                const btn = document.getElementById('story-viewers-btn');
+                btn.classList.remove('hidden');
+                btn.onclick = () => loadViewers(s.id);
+            }
+
+            // Animação da barra
+            const bar = document.getElementById('story-bar');
+            bar.style.transition = 'none';
+            bar.style.width = '0%';
+            setTimeout(() => {
+                bar.style.transition = 'width 5s linear';
+                bar.style.width = '100%';
+            }, 10);
+
+            clearTimeout(storyTimer);
+            storyTimer = setTimeout(() => {
+                currentStoryIndex++;
+                showStorySlide(username, avatarUrl);
+            }, 5000);
+        }
+
+        function closeStoryViewer() {
+            storyViewerActive = false;
+            clearTimeout(storyTimer);
+            document.getElementById('story-viewer').classList.add('hidden');
+            document.getElementById('viewers-sheet').classList.add('translate-y-full'); // Fecha sheet se aberto
+        }
+
+        // 5. Quem viu meu story
+        async function loadViewers(storyId) {
+            // Para animação
+            document.getElementById('viewers-sheet').classList.remove('translate-y-full');
+            
+            const viewers = await api(`/api/story-viewers/${storyId}`);
+            document.getElementById('views-count').innerText = viewers.length;
+            
+            const list = document.getElementById('viewers-list-content');
+            list.innerHTML = '';
+            
+            if(viewers.length === 0) {
+                list.innerHTML = '<p class="text-gray-500 text-center mt-4">Ninguém visualizou ainda.</p>';
+            } else {
+                viewers.forEach(v => {
+                    const avatar = v.avatar || `https://ui-avatars.com/api/?name=${v.username}`;
+                    list.innerHTML += `
+                        <div class="flex items-center gap-3 py-2 border-b border-[#38383A]">
+                            <img src="${avatar}" class="w-10 h-10 rounded-full object-cover">
+                            <div>
+                                <h4 class="text-white font-bold">${v.username}</h4>
+                                <span class="text-gray-500 text-xs">${formatTime(v.time)}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        function toggleViewersList() {
+            const el = document.getElementById('viewers-sheet');
+            if(el.classList.contains('translate-y-full')) {
+                // Não faz nada aqui, a abertura é pelo loadViewers
+            } else {
+                el.classList.add('translate-y-full');
+            }
         }
 
         // --- AMIZADE ---
@@ -572,8 +838,8 @@
                 if(u.username === currentUser.username) return;
                 div.innerHTML += `
                     <div class="flex justify-between items-center py-3">
-                        <span class="text-white font-bold">${u.username}</span>
-                        <button onclick="addFriend('${u.username}', this)" class="text-[#FF3B30] text-sm font-bold">Adicionar</button>
+                        <span class="text-white font-bold text-[16px]">${u.username}</span>
+                        <button onclick="addFriend('${u.username}', this)" class="text-[#FF3B30] text-sm font-bold bg-[#3E1010] px-3 py-1 rounded-full">Adicionar</button>
                     </div>`;
             });
         }
@@ -582,6 +848,8 @@
             await api('/api/friend-request', 'POST', { from: currentUser.username, to });
             socket.emit('send_friend_request', { from: currentUser.username, to });
             btn.innerText = "Enviado";
+            btn.classList.remove('text-[#FF3B30]', 'bg-[#3E1010]');
+            btn.classList.add('text-gray-400');
         }
 
         async function checkFriendRequests() {
@@ -595,7 +863,7 @@
                     list.innerHTML += `
                         <div class="flex justify-between items-center bg-[#2C2C2E] p-3 rounded mb-2">
                             <span class="text-white font-bold">${r.username}</span>
-                            <div class="flex gap-2">
+                            <div class="flex gap-4">
                                 <button onclick="respond('${r.username}', 'accept')" class="text-[#FF3B30] font-bold">Aceitar</button>
                                 <button onclick="respond('${r.username}', 'reject')" class="text-gray-500">X</button>
                             </div>
@@ -629,22 +897,49 @@
             }; r.readAsDataURL(f);
         }
 
+        function saveBio(val) {
+            currentUser.bio = val;
+            api('/api/update-profile', 'POST', currentUser);
+            localStorage.setItem('whats_black_user', JSON.stringify(currentUser));
+        }
+
         function switchTab(t) {
             ['chats','status','settings'].forEach(x => {
                 document.getElementById('tab-'+x).classList.add('screen-hidden');
                 document.getElementById('tab-'+x).classList.remove('screen-active');
-                document.getElementById('btn-'+x).classList.remove('active');
+                
+                const btn = document.getElementById('btn-'+x);
+                btn.classList.remove('text-[#FF3B30]');
+                btn.classList.add('text-[#8E8E93]');
+                btn.querySelector('i').classList.remove('fa-solid');
+                if(x === 'status') btn.querySelector('i').classList.add('fa-regular');
+                else btn.querySelector('i').classList.add('fa-solid'); // Ajuste conforme icon set
             });
+            
+            const activeBtn = document.getElementById('btn-'+t);
+            activeBtn.classList.remove('text-[#8E8E93]');
+            activeBtn.classList.add('text-[#FF3B30]');
+            
             document.getElementById('tab-'+t).classList.remove('screen-hidden');
             document.getElementById('tab-'+t).classList.add('screen-active');
-            document.getElementById('btn-'+t).classList.add('active');
+            
             if(t === 'status') loadStatus();
             if(t === 'chats') loadChatList();
+        }
+
+        function filterChats() {
+            const term = document.getElementById('chat-search').value.toLowerCase();
+            const items = document.querySelectorAll('#chat-list > div');
+            items.forEach(item => {
+                const name = item.querySelector('h3').innerText.toLowerCase();
+                item.style.display = name.includes(term) ? 'flex' : 'none';
+            });
         }
 
         function openModal(id){ document.getElementById(id).classList.remove('hidden'); }
         function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
         function formatTime(d) { if(!d) return ''; return new Date(d).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+        
         async function openContactInfo() {
             if(!activeChat) return;
             const u = await api(`/api/user/${activeChat}`);
@@ -652,8 +947,8 @@
             document.getElementById('info_avatar').src = u.avatar || `https://ui-avatars.com/api/?name=${u.username}`;
             document.getElementById('info_name').innerText = u.username;
             document.getElementById('info_bio').innerText = u.bio || "Sem recado";
-            const last = u.last_seen ? new Date(u.last_seen).toLocaleTimeString() : '--';
-            document.getElementById('info_seen').innerText = `Visto às ${last}`;
+            const last = u.last_seen ? new Date(u.last_seen).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '--:--';
+            document.getElementById('info_seen').innerText = u.last_seen === 'online' ? 'Online agora' : `Visto às ${last}`;
         }
     </script>
 </body>
