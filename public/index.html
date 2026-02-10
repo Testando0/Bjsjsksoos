@@ -110,18 +110,6 @@
             </header>
 
             <div class="flex-1 overflow-y-auto bg-black pb-24">
-                <div id="friend-requests-bar" class="hidden border-y border-[#38383A] bg-[#1a0505] mt-2 active:bg-[#2a0a0a] transition cursor-pointer">
-                    <button onclick="openModal('requests-modal')" class="w-full px-4 py-3 flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full bg-[#FF3B30]/20 flex items-center justify-center text-[#FF3B30]">
-                                <i class="fa-solid fa-user-plus"></i>
-                            </div>
-                            <span class="text-[#FF3B30] font-bold text-sm">Solicitações de Amizade</span>
-                        </div>
-                        <span id="req-count" class="bg-[#FF3B30] text-white text-xs font-bold px-2 py-0.5 rounded-full">0</span>
-                    </button>
-                </div>
-                
                 <div id="chat-list" class="pl-4 divide-y divide-[#2c2c2e]"></div>
             </div>
         </div>
@@ -147,7 +135,7 @@
                     <input type="file" id="status_file_input" hidden accept="image/*" onchange="openStatusPreview(event)">
                 </div>
 
-                <div class="text-[13px] font-bold text-gray-500 uppercase mb-2 px-1">Recentes</div>
+                <div class="text-[13px] font-bold text-gray-500 uppercase mb-2 px-1">Atualizações</div>
                 <div id="status-list" class="space-y-3"></div>
             </div>
         </div>
@@ -267,16 +255,6 @@
         </div>
     </div>
 
-    <div id="requests-modal" class="fixed inset-0 z-[500] hidden bg-black/80 backdrop-blur-sm">
-        <div class="absolute inset-x-0 bottom-0 h-3/4 bg-[#1C1C1E] rounded-t-2xl flex flex-col shadow-2xl shadow-red-900/20 border-t border-[#38383A]">
-            <div class="p-4 flex justify-between items-center border-b border-[#38383A]">
-                <span class="text-white font-bold text-lg">Solicitações</span>
-                <button onclick="closeModal('requests-modal')" class="text-[#FF3B30] font-bold bg-[#3A3A3C] px-3 py-1 rounded-full">Fechar</button>
-            </div>
-            <div id="requests-list" class="p-4 flex-1 overflow-y-auto space-y-3"></div>
-        </div>
-    </div>
-
     <div id="contact-info-modal" class="fixed inset-0 z-[200] hidden bg-black/70 backdrop-blur-sm" onclick="this.classList.add('hidden')">
         <div class="absolute inset-x-0 bottom-0 bg-[#1C1C1E] rounded-t-2xl p-6 flex flex-col items-center pb-[max(30px,var(--safe-bottom))]" onclick="event.stopPropagation()">
             <img id="info_avatar" class="w-24 h-24 rounded-full bg-gray-700 object-cover mb-4 border-2 border-[#FF3B30]">
@@ -346,21 +324,12 @@
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
             
-            // Ordem importante de carregamento
             socket.emit('join', currentUser.username);
             
             updateProfileUI();
             loadChatList();
             
-            // Força verificação imediata
-            setTimeout(checkFriendRequests, 500);
-            
             if("Notification" in window && Notification.permission === "default") Notification.requestPermission();
-
-            socket.on('connect', () => {
-                // Reconexão força nova verificação
-                if(currentUser) checkFriendRequests();
-            });
 
             socket.on('new_msg', (msg) => {
                 if (activeChat === msg.s) { 
@@ -374,22 +343,11 @@
             socket.on('msgs_read_update', () => { loadChatList(); });
             socket.on('status_result', (d) => { if(activeChat === d.username) updateHeaderStatus(d); });
             socket.on('contact_status_update', (d) => { if(activeChat === d.username) updateHeaderStatus(d); });
-            
-            // Ao receber pedido, atualiza a barra na hora
-            socket.on('new_friend_request', () => { 
-                console.log("Novo pedido de amizade recebido!");
-                checkFriendRequests(); 
-            });
-            
-            socket.on('friend_request_accepted', () => { 
-                console.log("Pedido aceito!");
-                loadChatList(); 
-            });
         }
 
         function logout() { localStorage.removeItem('whats_black_user'); location.reload(); }
 
-        // --- AMIGOS E BUSCA ---
+        // --- BUSCA E INÍCIO DE CHAT ---
         async function searchUsers() {
             const val = document.getElementById('search-user-input').value;
             if(!val) return;
@@ -402,8 +360,11 @@
                     if(u.username === currentUser.username) return;
                     div.innerHTML += `
                         <div class="flex justify-between items-center py-3">
-                            <span class="text-white font-bold">${u.username}</span>
-                            <button onclick="addFriend('${u.username}', this)" class="text-[#FF3B30] text-sm font-bold border border-[#FF3B30] px-3 py-1 rounded-full hover:bg-[#FF3B30] hover:text-white transition">Adicionar</button>
+                            <div class="flex items-center gap-3">
+                                <img src="${u.avatar || `https://ui-avatars.com/api/?name=${u.username}`}" class="w-10 h-10 rounded-full object-cover bg-gray-700">
+                                <span class="text-white font-bold">${u.username}</span>
+                            </div>
+                            <button onclick="startDirectChat('${u.username}')" class="text-[#FF3B30] text-sm font-bold border border-[#FF3B30] px-3 py-1 rounded-full hover:bg-[#FF3B30] hover:text-white transition">Conversar</button>
                         </div>`;
                 });
             } else {
@@ -411,82 +372,9 @@
             }
         }
 
-        async function addFriend(toUser, btn) {
-            btn.innerText = "Enviando...";
-            await api('/api/friend-request', 'POST', { from: currentUser.username, to: toUser });
-            socket.emit('send_friend_request', { from: currentUser.username, to: toUser });
-            
-            btn.innerText = "Enviado";
-            btn.className = "text-gray-500 text-sm font-bold border border-gray-500 px-3 py-1 rounded-full";
-            btn.onclick = null;
-        }
-
-        // --- LÓGICA DE SOLICITAÇÕES CORRIGIDA ---
-        async function checkFriendRequests() {
-            if (!currentUser) return;
-            
-            // Busca dados da API
-            const reqs = await api(`/api/friend-requests/${currentUser.username}`);
-            const bar = document.getElementById('friend-requests-bar');
-            const list = document.getElementById('requests-list');
-            
-            // Limpa lista anterior
-            list.innerHTML = '';
-
-            if (reqs && Array.isArray(reqs) && reqs.length > 0) {
-                // Mostra a barra se houver pedidos
-                bar.classList.remove('hidden'); 
-                bar.classList.add('block');
-                document.getElementById('req-count').innerText = reqs.length;
-                
-                // Popula o modal
-                reqs.forEach(r => {
-                    const avatar = r.avatar || `https://ui-avatars.com/api/?name=${r.username}`;
-                    // ID único para remover elemento visualmente ao aceitar
-                    const rowId = `req-row-${r.username}`;
-                    
-                    list.innerHTML += `
-                        <div id="${rowId}" class="flex justify-between items-center bg-[#2C2C2E] p-4 rounded-xl border border-[#38383A]">
-                            <div class="flex items-center gap-3">
-                                <img src="${avatar}" class="w-12 h-12 rounded-full object-cover bg-gray-700">
-                                <span class="text-white font-bold text-base">${r.username}</span>
-                            </div>
-                            <div class="flex gap-2">
-                                <button onclick="respondRequest('${r.username}', 'accept', '${rowId}')" class="bg-[#FF3B30] text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-600 transition">Aceitar</button>
-                                <button onclick="respondRequest('${r.username}', 'reject', '${rowId}')" class="bg-[#3A3A3C] text-gray-300 px-4 py-2 rounded-lg text-sm font-bold">Recusar</button>
-                            </div>
-                        </div>`;
-                });
-            } else {
-                // Esconde a barra se não houver pedidos
-                bar.classList.add('hidden'); 
-                bar.classList.remove('block');
-                list.innerHTML = '<p class="text-gray-500 text-center mt-10">Nenhuma solicitação pendente.</p>';
-            }
-        }
-
-        async function respondRequest(friend, action, rowId) {
-            // Feedback Visual Imediato (Remove a linha antes mesmo da API responder)
-            const row = document.getElementById(rowId);
-            if(row) row.remove();
-            
-            // Atualiza contador visualmente
-            const countEl = document.getElementById('req-count');
-            let curr = parseInt(countEl.innerText) || 0;
-            if(curr > 0) countEl.innerText = curr - 1;
-            if(curr - 1 <= 0) document.getElementById('friend-requests-bar').classList.add('hidden');
-
-            // Chamada API
-            await api('/api/respond-request', 'POST', { me: currentUser.username, friend, action });
-            
-            if(action === 'accept') { 
-                socket.emit('friend_request_accepted', { to: friend }); 
-                // Atualiza lista de chats para ver se aparece algo novo (depende do histórico)
-                setTimeout(loadChatList, 500);
-            }
-            
-            // Re-verifica no servidor para garantir sincronia
-            checkFriendRequests();
+        function startDirectChat(username) {
+            closeModal('new-chat-modal');
+            openChat(username);
         }
 
         // --- LISTA DE CONVERSAS ---
@@ -818,7 +706,7 @@
             if(t === 'status') activeBtn.querySelector('i').className = "fa-solid fa-circle-dot text-[24px]";
             if(t === 'chats') activeBtn.querySelector('i').className = "fa-solid fa-comment text-[24px]";
             
-            if(t === 'chats') { loadChatList(); checkFriendRequests(); }
+            if(t === 'chats') loadChatList();
             if(t === 'status') loadStatus();
         }
 
