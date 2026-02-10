@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const sqlite3 = require('sqlite3').verbose();
-const bcrypt = require('bcryptjs');
+const cors = require('cors');
 const path = require('path');
 
 const app = express();
@@ -11,260 +11,212 @@ const io = new Server(server, { cors: { origin: "*" }, maxHttpBufferSize: 1e8 })
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static('public')); 
+app.use(cors());
 
-const db = new sqlite3.Database('./whatsapp_ios_pro.db');
+// --- MUDANÇA ESTRATÉGICA: Nome novo para forçar criação correta das tabelas ---
+const db = new sqlite3.Database('./whatsapp_production.db');
 
-// --- INICIALIZAÇÃO ---
+// --- INICIALIZAÇÃO DE BANCO DE DADOS ROBUSTA ---
 db.serialize(() => {
+    // Tabelas Base
     db.run("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, avatar TEXT, bio TEXT, last_seen DATETIME)");
-    db.run("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, s TEXT, r TEXT, c TEXT, type TEXT, status INTEGER DEFAULT 0, is_deleted INTEGER DEFAULT 0, visible_for_s INTEGER DEFAULT 1, visible_for_r INTEGER DEFAULT 1, time DATETIME DEFAULT (datetime('now','localtime')))");
-    db.run("CREATE TABLE IF NOT EXISTS stories (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, content TEXT, type TEXT DEFAULT 'image', caption TEXT, bg_color TEXT, time DATETIME DEFAULT (datetime('now','localtime')))");
+    
+    db.run(`CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        s TEXT, r TEXT, c TEXT, type TEXT, 
+        status INTEGER DEFAULT 0, 
+        is_deleted INTEGER DEFAULT 0, 
+        visible_for_s INTEGER DEFAULT 1, 
+        visible_for_r INTEGER DEFAULT 1, 
+        time DATETIME DEFAULT (datetime('now','localtime'))
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS stories (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, 
+        username TEXT, content TEXT, type TEXT DEFAULT 'image', 
+        caption TEXT, bg_color TEXT, 
+        time DATETIME DEFAULT (datetime('now','localtime'))
+    )`);
+
     db.run("CREATE TABLE IF NOT EXISTS story_views (story_id INTEGER, viewer TEXT, time DATETIME DEFAULT (datetime('now','localtime')), PRIMARY KEY(story_id, viewer))");
-    // PRIMARY KEY composta para evitar duplicatas de amizade
-    db.run("CREATE TABLE IF NOT EXISTS friends (u1 TEXT, u2 TEXT, status INTEGER DEFAULT 0, action_user TEXT, PRIMARY KEY(u1, u2))");
+    
+    // Tabela de Amigos (Corrigida Definitivamente)
+    db.run(`CREATE TABLE IF NOT EXISTS friends (
+        u1 TEXT, 
+        u2 TEXT, 
+        status INTEGER DEFAULT 0, 
+        action_user TEXT, 
+        PRIMARY KEY(u1, u2)
+    )`);
 });
 
-const onlineUsers = {}; 
-
-app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'index.html')); });
-
-// --- SOCKET ---
-io.on('connection', (socket) => {
-    
-    socket.on('join', (username) => { 
-        socket.username = username; 
-        onlineUsers[username] = socket.id;
+// --- ROTAS DE AUTENTICAÇÃO ---
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    db.get("SELECT * FROM users WHERE username = ?", [username], (err, user) => {
+        if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+        if (password !== user.password) return res.status(401).json({ error: "Senha incorreta" }); // Em prod usar bcrypt
+        
+        // Atualiza status para online ao logar
         db.run("UPDATE users SET last_seen = 'online' WHERE username = ?", [username]);
-        notifyFriendsStatus(username, 'online');
+        res.json(user);
     });
+});
 
-    socket.on('send_msg', (data) => {
-        const recipientSocketId = onlineUsers[data.r];
-        const status = recipientSocketId ? 1 : 0; 
-        const now = new Date().toISOString();
-
-        db.run("INSERT INTO messages (s, r, c, type, status, time, visible_for_s, visible_for_r) VALUES (?, ?, ?, ?, ?, ?, 1, 1)", 
-            [data.s, data.r, data.c, data.type, status, now], 
-            function(err) {
-                if(!err) {
-                    const msgPayload = { ...data, id: this.lastID, status, time: now };
-                    if(recipientSocketId) io.to(recipientSocketId).emit('new_msg', msgPayload);
-                    socket.emit('msg_sent_ok', msgPayload);
-                }
-            }
-        );
-    });
-
-    socket.on('mark_read', (data) => {
-        db.run("UPDATE messages SET status = 2 WHERE s = ? AND r = ? AND status < 2", [data.s, data.r], function(err) {
-            if(!err && this.changes > 0) {
-                if(onlineUsers[data.s]) {
-                    io.to(onlineUsers[data.s]).emit('msgs_read_update', { reader: data.r });
-                }
-            }
-        });
-    });
-
-    socket.on('delete_chat', (data) => {
-        const { me, partner } = data;
-        db.run("UPDATE messages SET visible_for_s = 0 WHERE s = ? AND r = ?", [me, partner]);
-        db.run("UPDATE messages SET visible_for_r = 0 WHERE r = ? AND s = ?", [me, partner]);
-        socket.emit('chat_deleted_ok', { partner });
-    });
-
-    socket.on('typing', (data) => {
-        const dest = onlineUsers[data.to];
-        if(dest) io.to(dest).emit('typing_status', { from: socket.username, isTyping: data.isTyping });
-    });
-
-    socket.on('get_status_detailed', (targetUser) => {
-        if (onlineUsers[targetUser]) {
-            socket.emit('status_result', { username: targetUser, status: 'online' });
-        } else {
-            db.get("SELECT last_seen FROM users WHERE username = ?", [targetUser], (err, row) => {
-                socket.emit('status_result', { username: targetUser, status: 'offline', last_seen: row ? row.last_seen : null });
-            });
-        }
-    });
-
-    // --- CORREÇÃO AQUI: Nome do evento ajustado para 'new_friend_request' ---
-    socket.on('send_friend_request', (data) => {
-        const { from, to } = data;
-        if(onlineUsers[to]) {
-            io.to(onlineUsers[to]).emit('new_friend_request', { from }); // Estava 'friend_request_received'
-        }
-    });
+app.post('/api/signup', (req, res) => {
+    const { username, password } = req.body;
+    const avatar = `https://ui-avatars.com/api/?name=${username}&background=random&color=fff`;
     
-    socket.on('friend_request_accepted', (data) => {
-        const { to } = data;
-        if(onlineUsers[to]) {
-            io.to(onlineUsers[to]).emit('friend_request_accepted', {}); 
-        }
-    });
-
-    socket.on('disconnect', () => { 
-        if(socket.username) {
-            const now = new Date().toISOString();
-            db.run("UPDATE users SET last_seen = ? WHERE username = ?", [now, socket.username]);
-            notifyFriendsStatus(socket.username, 'offline', now);
-            delete onlineUsers[socket.username]; 
-        }
+    db.run("INSERT INTO users (username, password, avatar, last_seen) VALUES (?, ?, ?, 'online')", 
+    [username, password, avatar], (err) => {
+        if (err) return res.status(400).json({ error: "Usuário já existe" });
+        res.json({ username, avatar });
     });
 });
 
-function notifyFriendsStatus(username, status, lastSeen = null) {
-    db.all("SELECT u1, u2 FROM friends WHERE (u1 = ? OR u2 = ?) AND status = 1", [username, username], (err, rows) => {
-        if(rows) {
-            rows.forEach(r => {
-                const friend = r.u1 === username ? r.u2 : r.u1;
-                if(onlineUsers[friend]) {
-                    io.to(onlineUsers[friend]).emit('contact_status_update', { username, status, last_seen: lastSeen });
-                }
-            });
-        }
-    });
-}
-
-// --- API ---
-
-app.post('/auth/register', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const hash = await bcrypt.hash(password, 10);
-        db.run("INSERT INTO users (username, password, bio, avatar, last_seen) VALUES (?, ?, 'Olá! Estou usando o Chat.', '', ?)", 
-        [username, hash, new Date().toISOString()], (err) => {
-            if(err) return res.status(400).json({error: "Usuário já existe"});
-            res.json({ok: true});
-        });
-    } catch(e) { res.status(500).send(); }
-});
-
-app.post('/auth/login', (req, res) => {
-    db.get("SELECT * FROM users WHERE username = ?", [req.body.username], async (err, user) => {
-        if(user && await bcrypt.compare(req.body.password, user.password)) { 
-            delete user.password; res.json(user); 
-        } else res.status(401).json({error: "Credenciais inválidas"});
-    });
-});
-
-app.get('/api/chats/:me', (req, res) => {
-    const me = req.params.me;
-    const q = `
-        SELECT 
-            contact_name as contact,
-            u.avatar,
-            m.c as last_msg,
-            m.type as last_type,
-            m.status as last_status,
-            m.s as last_sender,
-            m.time as last_time,
-            (SELECT COUNT(*) FROM messages 
-             WHERE s = contact_name AND r = ? AND status < 2 AND visible_for_r = 1) as unread
-        FROM (
-            SELECT DISTINCT CASE WHEN s = ? THEN r ELSE s END as contact_name
-            FROM messages 
-            WHERE (s = ? AND visible_for_s = 1) OR (r = ? AND visible_for_r = 1)
-        ) as contacts
-        JOIN users u ON u.username = contacts.contact_name
-        LEFT JOIN messages m ON m.id = (
-            SELECT id FROM messages 
-            WHERE ((s = ? AND r = u.username AND visible_for_s = 1) 
-               OR (s = u.username AND r = ? AND visible_for_r = 1))
-            ORDER BY time DESC LIMIT 1
-        )
-        ORDER BY m.time DESC
-    `;
-    db.all(q, [me, me, me, me, me, me], (e, r) => res.json(r || []));
-});
-
-app.get('/api/messages/:u1/:u2', (req, res) => {
-    const { u1, u2 } = req.params;
-    const q = `
-        SELECT * FROM messages 
-        WHERE ((s=? AND r=? AND visible_for_s=1) OR (s=? AND r=? AND visible_for_r=1))
-        ORDER BY time ASC
-    `;
-    db.all(q, [u1, u2, u2, u1], (e, r) => res.json(r || []));
-});
-
-app.get('/api/user/:u', (req, res) => db.get("SELECT username, avatar, bio, last_seen FROM users WHERE username = ?", [req.params.u], (e, r) => res.json(r || {})));
-app.post('/api/update-profile', (req, res) => db.run("UPDATE users SET bio = ?, avatar = ? WHERE username = ?", [req.body.bio, req.body.avatar, req.body.username], () => res.json({ok:true})));
-
-app.post('/api/story', (req, res) => {
-    const { username, content, type, caption, bg_color } = req.body;
-    db.run("INSERT INTO stories (username, content, type, caption, bg_color) VALUES (?, ?, ?, ?, ?)", [username, content, type, caption, bg_color], () => res.json({ok:true}));
-});
-
-app.get('/api/stories/:me', (req, res) => {
-    const me = req.params.me;
-    const q = `
-        SELECT s.*, u.avatar 
-        FROM stories s 
-        JOIN users u ON s.username = u.username
-        LEFT JOIN friends f ON (f.u1 = ? AND f.u2 = s.username) OR (f.u1 = s.username AND f.u2 = ?)
-        WHERE (s.username = ? OR f.status = 1) 
-        AND s.time > datetime('now', '-24 hours') 
-        ORDER BY s.time ASC
-    `;
-    db.all(q, [me, me, me], (e, r) => res.json(r || []));
-});
-
-app.post('/api/view-story', (req, res) => {
-    db.run("INSERT OR IGNORE INTO story_views (story_id, viewer) VALUES (?, ?)", [req.body.id, req.body.viewer], () => res.json({ok:true}));
-});
-
-app.get('/api/story-viewers/:id', (req, res) => {
-    db.all("SELECT v.time, u.username, u.avatar FROM story_views v JOIN users u ON v.viewer = u.username WHERE v.story_id = ? ORDER BY v.time DESC", [req.params.id], (e, r) => res.json(r||[]));
-});
-
-app.get('/api/search/:term', (req, res) => {
-    db.all("SELECT username, avatar, bio FROM users WHERE username LIKE ? LIMIT 10", [`%${req.params.term}%`], (e, r) => res.json(r||[]));
-});
-
-// --- AMIZADES CORRIGIDAS ---
-app.post('/api/friend-request', (req, res) => {
+// --- SISTEMA DE AMIZADE (CORRIGIDO) ---
+app.post('/api/add-friend', (req, res) => {
     const { from, to } = req.body;
-    if(from === to) return res.status(400).json({});
-    
-    // Verifica existência em qualquer direção
+    if (from === to) return res.json({ status: 'error', msg: 'Não pode adicionar a si mesmo' });
+
+    // Verifica se já existe relação
     db.get("SELECT * FROM friends WHERE (u1=? AND u2=?) OR (u1=? AND u2=?)", [from, to, to, from], (err, row) => {
-        if(row) {
-             if(row.status === 1) return res.json({status: 'friends'});
-             return res.json({status: 'pending'});
+        if (row) {
+            // Se já são amigos ou pendente
+            if (row.status === 1) return res.json({ status: 'already_friends' });
+            if (row.status === 0) return res.json({ status: 'pending' });
         } else {
-            // Insere garantindo ordem única para evitar duplicidade de chave composta se a lógica do app falhar
+            // Cria nova solicitação
+            // Lógica: u1 é sempre alfabeticamente menor para consistência da chave primária
+            const [first, second] = [from, to].sort();
+            
             db.run("INSERT INTO friends (u1, u2, status, action_user) VALUES (?, ?, 0, ?)", 
-            [from, to, from], 
+            [first, second, from], 
             (err) => {
-                if(err) console.error("Erro ao inserir amizade:", err);
-                res.json({status: 'sent'});
+                if(err) {
+                    console.error("Erro ao adicionar amigo:", err);
+                    return res.status(500).json({error: "Erro no banco"});
+                }
+                res.json({ status: 'sent' });
             });
         }
     });
 });
 
 app.get('/api/friend-requests/:me', (req, res) => {
-    // Busca solicitações onde:
-    // 1. Eu faço parte da relação (u1 ou u2)
-    // 2. Quem tomou a ação (action_user) NÃO fui eu
-    // 3. Status é 0 (pendente)
+    const me = req.params.me;
+    
+    // Query Explicada:
+    // Pega usuários (u) que estão na tabela friends comigo
+    // ONDE (eu sou u1 OU eu sou u2)
+    // E (quem fez a ação action_user NÃO fui eu)
+    // E (status é 0 = pendente)
     const q = `
         SELECT u.username, u.avatar 
         FROM friends f 
-        JOIN users u ON (f.u1 = u.username OR f.u2 = u.username) 
-        WHERE ((f.u1 = ? AND f.action_user != ?) OR (f.u2 = ? AND f.action_user != ?)) 
-        AND f.status = 0 AND u.username != ?
+        JOIN users u ON (
+            (f.u1 = u.username AND f.u2 = ?) OR 
+            (f.u2 = u.username AND f.u1 = ?)
+        )
+        WHERE f.action_user != ? 
+        AND f.status = 0
     `;
-    db.all(q, [req.params.me, req.params.me, req.params.me, req.params.me, req.params.me], (e, r) => res.json(r || []));
+    
+    db.all(q, [me, me, me], (err, rows) => {
+        if (err) {
+            console.error("ERRO BUSCANDO SOLICITAÇÕES:", err);
+            return res.json([]);
+        }
+        res.json(rows || []);
+    });
 });
 
 app.post('/api/respond-request', (req, res) => {
     const { me, friend, action } = req.body;
-    if(action === 'reject') {
-        db.run("DELETE FROM friends WHERE (u1=? AND u2=?) OR (u1=? AND u2=?)", [me, friend, friend, me], ()=>res.json({ok:true}));
+    // Precisamos achar a linha onde 'me' e 'friend' estão, independente da ordem
+    const status = action === 'accept' ? 1 : -1; // -1 para deletar ou rejeitar futuramente
+    
+    if (action === 'reject') {
+        db.run("DELETE FROM friends WHERE (u1=? AND u2=?) OR (u1=? AND u2=?)", [me, friend, friend, me], (err) => {
+            res.json({ success: true });
+        });
     } else {
-        db.run("UPDATE friends SET status = 1 WHERE ((u1=? AND u2=?) OR (u1=? AND u2=?))", [me, friend, friend, me], ()=>res.json({ok:true}));
+        db.run("UPDATE friends SET status = 1, action_user = ? WHERE (u1=? AND u2=?) OR (u1=? AND u2=?)", 
+        [me, me, friend, friend, me], (err) => {
+            if(err) console.error(err);
+            res.json({ success: true });
+        });
     }
 });
 
-server.listen(3001, () => console.log('Servidor 3001 - iOS Clone Pro'));
+app.get('/api/my-friends/:me', (req, res) => {
+    const me = req.params.me;
+    const q = `
+        SELECT u.username, u.avatar, u.bio, u.last_seen 
+        FROM friends f 
+        JOIN users u ON ((f.u1 = u.username AND f.u2 = ?) OR (f.u2 = u.username AND f.u1 = ?))
+        WHERE f.status = 1
+    `;
+    db.all(q, [me, me], (err, rows) => {
+        res.json(rows || []);
+    });
+});
+
+// --- RESTO DA API (MENSAGENS, USUÁRIOS, STORIES) ---
+app.get('/api/user/:username', (req, res) => {
+    db.get("SELECT username, avatar, bio, last_seen FROM users WHERE username = ?", [req.params.username], (err, row) => res.json(row || {}));
+});
+
+app.get('/api/search-users', (req, res) => {
+    const term = `%${req.query.q}%`;
+    db.all("SELECT username, avatar FROM users WHERE username LIKE ? LIMIT 20", [term], (err, rows) => res.json(rows));
+});
+
+app.get('/api/chat/:u1/:u2', (req, res) => {
+    const { u1, u2 } = req.params;
+    db.all("SELECT * FROM messages WHERE (s=? AND r=?) OR (s=? AND r=?) ORDER BY time ASC", [u1, u2, u2, u1], (err, rows) => res.json(rows));
+});
+
+app.post('/api/upload-story', (req, res) => {
+    const { username, content, type, caption, bg_color } = req.body;
+    db.run("INSERT INTO stories (username, content, type, caption, bg_color) VALUES (?, ?, ?, ?, ?)", 
+        [username, content, type, caption, bg_color], 
+        function(err) { res.json({ success: !err }); }
+    );
+});
+
+app.get('/api/stories', (req, res) => {
+    db.all("SELECT * FROM stories WHERE time > datetime('now', '-24 hours') ORDER BY time ASC", [], (err, rows) => res.json(rows));
+});
+
+// --- SOCKET.IO (REALTIME) ---
+let onlineUsers = {};
+
+io.on('connection', (socket) => {
+    socket.on('join', (user) => {
+        onlineUsers[user] = socket.id;
+        db.run("UPDATE users SET last_seen = 'online' WHERE username = ?", [user]);
+        io.emit('user_status', { username: user, status: 'online' });
+    });
+
+    socket.on('send_msg', (data) => {
+        const { s, r, c, type } = data;
+        db.run("INSERT INTO messages (s, r, c, type, status) VALUES (?, ?, ?, ?, 1)", [s, r, c, type], function(err) {
+            const msgData = { ...data, id: this.lastID, time: new Date() };
+            if (onlineUsers[r]) io.to(onlineUsers[r]).emit('receive_msg', msgData);
+            socket.emit('receive_msg', msgData); // Confirmação local
+        });
+    });
+
+    socket.on('disconnect', () => {
+        const user = Object.keys(onlineUsers).find(key => onlineUsers[key] === socket.id);
+        if (user) {
+            delete onlineUsers[user];
+            db.run("UPDATE users SET last_seen = datetime('now','localtime') WHERE username = ?", [user]);
+            io.emit('user_status', { username: user, status: 'offline', last_seen: new Date() });
+        }
+    });
+});
+
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => console.log(`SERVIDOR RODANDO PRO EM: http://localhost:${PORT}`));
