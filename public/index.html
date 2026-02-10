@@ -3,751 +3,444 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>WhatsApp Black iOS</title>
+    <title>Chat iOS Dark</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- TEMA BLACK & RED iOS PRO --- */
-        :root { 
-            --bg-app: #000000; 
-            --bg-header: rgba(28, 28, 30, 0.95);
-            --bg-item: #1C1C1E;
-            --accent-color: #FF3B30;
+        /* --- CONFIGURAÇÕES DARK MODE & RED THEME --- */
+        :root {
+            --bg-app: #000000;
+            --bg-secondary: #1C1C1E; /* Cinza iOS Dark */
+            --bg-header: #161616;
             --text-primary: #FFFFFF;
             --text-secondary: #8E8E93;
-            --bubble-me: #3E1010; 
-            --bubble-them: #2C2C2E;
-            --separator: #2c2c2e;
-            --safe-top: env(safe-area-inset-top);
-            --safe-bottom: env(safe-area-inset-bottom);
+            --separator: #2C2C2E;
+            --accent-color: #FF3B30; /* Vermelho iOS */
+            
+            /* Cores dos Balões */
+            --bubble-me: #3E1010; /* Vermelho Escuro Sutil */
+            --bubble-them: #2C2C2E; /* Cinza Escuro */
+            
+            /* Background do Chat (Imagem escura) */
+            --chat-bg-color: #0b141a;
         }
 
-        body, html { height: 100%; width: 100%; overflow: hidden; background: var(--bg-app); color: var(--text-primary); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
-        
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        
-        /* Telas e Transições */
-        .screen {
-            position: absolute; inset: 0; background: var(--bg-app);
-            transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
-            display: flex; flex-direction: column; z-index: 10;
+        body, html { 
+            height: 100%; width: 100%; overflow: hidden; 
+            background: var(--bg-app); 
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
         }
-        .screen-hidden { transform: translateX(100%); z-index: 20; }
-        .screen-active { transform: translateX(0); }
         
-        /* Headers */
-        .ios-header-large {
-            background: var(--bg-app);
-            padding-top: max(10px, var(--safe-top));
-            padding-bottom: 10px;
+        /* LAYOUT & Z-INDEX */
+        #login-screen { z-index: 9999; background-color: var(--bg-app); }
+        #main-app { z-index: 10; position: absolute; inset: 0; display: flex; flex-direction: column; background-color: var(--bg-app); }
+        
+        /* TELA DE CHAT (SLIDE OVER) */
+        #chat-room { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background-color: var(--chat-bg-color);
+            background-image: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)), url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-blend-mode: overlay;
+            z-index: 100;
+            transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
             display: flex; flex-direction: column;
-            position: sticky; top: 0; z-index: 50;
         }
-
-        .ios-header-compact {
-            background: var(--bg-header); backdrop-filter: saturate(180%) blur(20px);
-            border-bottom: 0.5px solid var(--separator);
-            padding-top: max(5px, var(--safe-top));
-            height: calc(50px + var(--safe-top));
-            display: flex; align-items: center; justify-content: center;
-            position: sticky; top: 0; z-index: 50;
+        .chat-open { transform: translateX(0) !important; }
+        
+        /* BALÕES DE MENSAGEM */
+        .msg-bubble { 
+            max-width: 75%; padding: 6px 10px; font-size: 16px; 
+            border-radius: 8px; margin-bottom: 4px; position: relative; 
+            color: #FFF; 
+        }
+        .msg-me { 
+            background: var(--bubble-me); align-self: flex-end; 
+            border-radius: 18px 18px 4px 18px; margin-right: 10px; 
+        }
+        .msg-them { 
+            background: var(--bubble-them); align-self: flex-start; 
+            border-radius: 18px 18px 18px 4px; margin-left: 10px; 
         }
         
-        .ios-title-center { position: absolute; left: 0; right: 0; text-align: center; font-weight: 600; font-size: 17px; pointer-events: none; }
-        .ios-btn-left { position: absolute; left: 16px; font-size: 17px; color: var(--accent-color); z-index: 10; }
-        .ios-btn-right { position: absolute; right: 16px; font-size: 17px; color: var(--accent-color); z-index: 10; }
+        /* CLASSES UTILITÁRIAS CUSTOMIZADAS */
+        .safe-pb { padding-bottom: env(safe-area-inset-bottom); }
+        
+        .active-tab svg { color: var(--accent-color); }
+        .active-tab span { color: var(--accent-color); }
+        
+        /* Inputs Dark Mode */
+        .input-dark {
+            background-color: #2C2C2E;
+            color: white;
+            border: none;
+        }
+        .input-dark::placeholder { color: #8E8E93; }
 
-        /* Chat UI */
-        #chat-room { background-color: #000; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-blend-mode: overlay; }
-        .msg-row { display: flex; width: 100%; margin-bottom: 3px; padding: 0 12px; }
-        .msg-bubble { max-width: 78%; padding: 6px 12px; font-size: 16px; border-radius: 8px; position: relative; line-height: 1.3; word-wrap: break-word; }
-        
-        .msg-me { justify-content: flex-end; }
-        .msg-me .msg-bubble { background: var(--bubble-me); color: white; border-radius: 16px 16px 2px 16px; }
-        
-        .msg-them { justify-content: flex-start; }
-        .msg-them .msg-bubble { background: var(--bubble-them); color: white; border-radius: 16px 16px 16px 2px; }
-        
-        .msg-meta { font-size: 10px; color: rgba(255,255,255,0.6); display: flex; justify-content: flex-end; margin-top: 2px; gap: 4px; align-items: center; float: right; margin-left: 8px; }
+        /* Scrollbar fina para dark mode */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
 
-        /* Animações e Utilitários */
-        .delete-btn { width: 0; overflow: hidden; transition: width 0.3s ease; }
-        .editing .delete-btn { width: 40px; }
-        
+        /* Animação suave nos Ticks */
+        .tick-icon { font-size: 11px; margin-left: 3px; font-weight: bold; letter-spacing: -1px; }
+        .tick-read { color: var(--accent-color); }
+        .tick-sent { color: #8E8E93; }
     </style>
 </head>
 <body>
 
-    <div id="login-screen" class="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-center p-8">
-        <div class="w-20 h-20 rounded-2xl flex items-center justify-center mb-6 border border-[#FF3B30] shadow-[0_0_20px_rgba(255,59,48,0.2)]">
-            <i class="fa-brands fa-whatsapp text-[#FF3B30] text-4xl"></i>
-        </div>
-        <h1 class="text-xl font-bold mb-8 text-white">WhatsApp <span class="text-[#FF3B30]">Black</span></h1>
-        <div class="w-full max-w-sm space-y-3">
-            <input id="u_auth" type="text" placeholder="Usuário" class="w-full bg-[#1C1C1E] text-white p-3 rounded-lg outline-none focus:ring-1 focus:ring-[#FF3B30]">
-            <input id="p_auth" type="password" placeholder="Senha" class="w-full bg-[#1C1C1E] text-white p-3 rounded-lg outline-none focus:ring-1 focus:ring-[#FF3B30]">
-            <button onclick="handleAuth('login')" class="w-full bg-[#FF3B30] text-white py-3 rounded-lg font-bold">Entrar</button>
-            <button onclick="handleAuth('register')" class="w-full text-[#FF3B30] text-sm py-2">Criar conta</button>
-        </div>
+    <div id="login-screen" class="fixed inset-0 flex flex-col items-center justify-center p-8">
+        <h1 class="text-3xl font-bold mb-8 text-[#FF3B30]">WhatsApp Clone</h1>
+        <input id="u_auth" placeholder="Usuário" class="w-full input-dark p-4 rounded-xl mb-3 outline-none focus:ring-1 focus:ring-red-500">
+        <input id="p_auth" type="password" placeholder="Senha" class="w-full input-dark p-4 rounded-xl mb-6 outline-none focus:ring-1 focus:ring-red-500">
+        <button onclick="auth('login')" class="w-full bg-[#FF3B30] active:bg-red-700 text-white py-4 rounded-xl font-bold transition">Entrar</button>
+        <button onclick="auth('register')" class="mt-4 text-[#FF3B30] font-medium">Criar Conta</button>
     </div>
 
-    <div id="main-app" class="hidden h-full w-full relative">
+    <div id="main-app" class="hidden">
         
-        <div id="tab-chats" class="screen flex flex-col z-10">
-            <header class="ios-header-large px-4">
-                <div class="flex justify-between items-center mb-2">
-                    <button id="btn-edit-chats" onclick="toggleEditMode()" class="text-[#FF3B30] text-[17px]">Editar</button>
-                    <button onclick="openModal('new-chat-modal')" class="text-[#FF3B30]">
-                        <i class="fa-regular fa-pen-to-square text-xl"></i>
-                    </button>
-                </div>
-                <h1 class="text-[30px] font-bold text-white mb-2 tracking-tight">Conversas</h1>
-                <div class="bg-[#1C1C1E] rounded-lg px-3 py-2 flex items-center gap-2">
-                    <i class="fa-solid fa-magnifying-glass text-gray-500 text-sm"></i>
-                    <input id="chat-search" oninput="filterChats()" placeholder="Pesquisar" class="bg-transparent w-full outline-none text-[16px] text-white placeholder-gray-600">
-                </div>
-            </header>
+        <header class="bg-[#161616] border-b border-[#2C2C2E] pt-safe pb-3 px-4 flex justify-between items-center shrink-0 min-h-[60px]">
+            <button class="text-[#FF3B30] text-[17px]">Editar</button>
+            <h1 class="font-bold text-[18px] text-white">Conversas</h1>
+            <button onclick="document.getElementById('new-chat-modal').classList.remove('hidden')" class="text-[#FF3B30]">
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+        </header>
 
-            <div class="flex-1 overflow-y-auto bg-black pb-24">
-                <div id="chat-list" class="pl-4 divide-y divide-[#2c2c2e]"></div>
-            </div>
-        </div>
-
-        <div id="tab-status" class="screen screen-hidden bg-black z-10">
-            <header class="ios-header-compact">
-                <button class="ios-btn-left font-medium" onclick="switchTab('chats')">Voltar</button>
-                <span class="ios-title-center text-white">Status</span>
-            </header>
+        <div class="flex-1 overflow-y-auto relative">
             
-            <div class="p-4 overflow-y-auto flex-1 pb-24">
-                <div class="flex items-center gap-4 mb-6 cursor-pointer" onclick="handleStatusClick()">
-                    <div class="relative">
-                        <img id="my_status_pic" class="w-14 h-14 rounded-full object-cover border-2 border-[#2C2C2E]">
-                        <div class="absolute bottom-0 right-0 bg-[#FF3B30] w-5 h-5 rounded-full flex items-center justify-center border-2 border-black">
-                            <i class="fa-solid fa-plus text-white text-[10px]"></i>
-                        </div>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-white text-[16px]">Meu Status</h3>
-                        <p class="text-gray-500 text-[14px]">Toque para atualizar</p>
-                    </div>
-                    <input type="file" id="status_file_input" hidden accept="image/*" onchange="openStatusPreview(event)">
+            <div id="tab-chats" class="w-full">
+                <div class="px-4 py-2 bg-[#161616]">
+                    <input placeholder="Pesquisar" class="w-full bg-[#2C2C2E] text-white rounded-lg px-3 py-1.5 text-center outline-none placeholder-gray-500 focus:text-left focus:pl-3 transition-all">
                 </div>
-
-                <div class="text-[13px] font-bold text-gray-500 uppercase mb-2 px-1">Atualizações</div>
-                <div id="status-list" class="space-y-3"></div>
+                <div id="chat-list" class="pl-4 border-t border-[#2C2C2E]"></div>
             </div>
-        </div>
 
-        <div id="tab-settings" class="screen screen-hidden bg-black z-10">
-            <header class="ios-header-compact">
-                <span class="ios-title-center text-white">Ajustes</span>
-            </header>
-            
-            <div class="flex-1 overflow-y-auto pt-4 pb-24">
-                <div class="bg-[#1C1C1E] flex items-center p-4 gap-4 border-y border-[#2c2c2e] cursor-pointer" onclick="document.getElementById('avatar_file').click()">
+            <div id="tab-status" class="hidden w-full min-h-full pb-20">
+                <h1 class="text-3xl font-bold px-4 py-4 text-white">Status</h1>
+                <div class="bg-[#1C1C1E] px-4 py-3 flex items-center gap-3 border-y border-[#2C2C2E]" onclick="document.getElementById('status_file').click()">
+                     <img id="my_status_pic" class="w-14 h-14 rounded-full bg-gray-700 object-cover">
+                     <div><h3 class="font-bold text-white">Meu Status</h3><p class="text-gray-400 text-sm">Adicionar ao meu status</p></div>
+                     <input type="file" id="status_file" hidden accept="image/*" onchange="postStatus(event)">
+                </div>
+                <div id="status-list" class="mt-6 bg-[#1C1C1E] pl-4 border-t border-[#2C2C2E]"></div>
+            </div>
+
+            <div id="tab-settings" class="hidden w-full min-h-full pb-20">
+                <h1 class="text-3xl font-bold px-4 py-4 text-white">Ajustes</h1>
+                <div class="bg-[#1C1C1E] border-y border-[#2C2C2E] flex items-center p-4 gap-4 mb-8" onclick="document.getElementById('avatar_file').click()">
                     <img id="settings_avatar" class="w-16 h-16 rounded-full bg-gray-700 object-cover">
                     <div class="flex-1">
-                        <h2 id="settings_name" class="text-xl font-semibold text-white">Nome</h2>
-                        <p class="text-gray-500 text-sm">Toque para alterar foto</p>
+                        <h2 id="settings_name" class="text-xl font-semibold text-white">User</h2>
+                        <p class="text-gray-400 text-sm">Toque para mudar foto</p>
                     </div>
                     <input type="file" id="avatar_file" hidden accept="image/*" onchange="updateProfilePic(event)">
                 </div>
-                
-                <div class="mt-8 bg-[#1C1C1E] border-y border-[#2c2c2e] px-4 py-3">
-                    <label class="text-[12px] text-[#FF3B30] font-bold uppercase">Recado</label>
-                    <input id="settings_bio" class="w-full bg-transparent text-white text-[16px] outline-none mt-1" onblur="saveBio(this.value)">
+                <div class="bg-[#1C1C1E] border-y border-[#2C2C2E] p-4 mb-8">
+                    <label class="text-xs text-gray-500 uppercase">Recado</label>
+                    <input id="settings_bio" class="w-full mt-1 text-[17px] bg-transparent text-white outline-none" onblur="saveBio(this.value)">
                 </div>
-
-                <button onclick="logout()" class="mt-8 w-full bg-[#1C1C1E] border-y border-[#2c2c2e] p-3 text-[#FF3B30] text-[16px] font-medium">Sair</button>
+                <button onclick="logout()" class="w-full bg-[#1C1C1E] p-4 text-[#FF3B30] text-lg border-y border-[#2C2C2E] text-left">Sair</button>
             </div>
         </div>
 
-        <nav class="absolute bottom-0 w-full bg-[rgba(28,28,30,0.95)] backdrop-blur-md border-t border-[#2c2c2e] pb-[max(20px,var(--safe-bottom))] pt-2 flex justify-around z-40">
+        <nav class="bg-[#161616]/95 backdrop-blur border-t border-[#2C2C2E] h-[83px] flex justify-around pt-2 pb-safe shrink-0 z-50">
             <button onclick="switchTab('status')" id="btn-status" class="flex flex-col items-center gap-1 w-16 text-[#8E8E93]">
-                <i class="fa-regular fa-circle-dot text-[24px]"></i>
+                <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 <span class="text-[10px] font-medium">Status</span>
             </button>
-            <button onclick="switchTab('chats')" id="btn-chats" class="text-[#FF3B30] flex flex-col items-center gap-1 w-16">
-                <i class="fa-solid fa-comment text-[24px]"></i>
+            <button onclick="switchTab('chats')" id="btn-chats" class="active-tab flex flex-col items-center gap-1 w-16 text-[#8E8E93]">
+                <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
                 <span class="text-[10px] font-medium">Conversas</span>
             </button>
-            <button onclick="switchTab('settings')" id="btn-settings" class="text-[#8E8E93] flex flex-col items-center gap-1 w-16">
-                <i class="fa-solid fa-gear text-[24px]"></i>
+            <button onclick="switchTab('settings')" id="btn-settings" class="flex flex-col items-center gap-1 w-16 text-[#8E8E93]">
+                <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.488.488 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.04.17 0 .4.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.04-.22 0-.45-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
                 <span class="text-[10px] font-medium">Ajustes</span>
             </button>
         </nav>
+    </div>
 
-        <div id="chat-room" class="screen screen-hidden flex flex-col h-full z-50">
-            <header class="bg-[rgba(28,28,30,0.95)] backdrop-blur-md border-b border-[#2c2c2e] pt-[max(5px,var(--safe-top))] pb-2 flex items-center justify-between px-2 shrink-0 relative z-30">
-                <button onclick="closeChat()" class="flex items-center text-[#FF3B30] h-10 px-2 rounded active:opacity-50 z-20">
-                    <i class="fa-solid fa-chevron-left text-xl mr-1"></i>
-                    <span class="text-[17px]">Voltar</span>
-                </button>
-                <div class="flex flex-col items-center absolute left-0 right-0 pointer-events-none">
-                    <div class="pointer-events-auto flex flex-col items-center cursor-pointer" onclick="openContactInfo()">
-                        <h3 id="chat_name" class="font-semibold text-[16px] text-white leading-tight">--</h3>
-                        <span id="chat_status" class="text-[11px] text-gray-400">Offline</span>
-                    </div>
+    <div id="chat-room">
+        <header class="h-16 bg-[#161616]/95 backdrop-blur border-b border-[#2C2C2E] flex items-center px-2 shrink-0 z-50 shadow-sm pt-safe">
+            <button onclick="closeChat()" class="flex items-center text-[#FF3B30] pr-2 h-full">
+                <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+                <span class="text-[17px] -ml-1">Voltar</span>
+            </button>
+            <div class="flex-1 flex items-center gap-3 cursor-pointer py-1" onclick="document.getElementById('contact-modal').classList.remove('hidden')">
+                <img id="chat_avatar" class="w-9 h-9 rounded-full bg-gray-700 object-cover border border-[#2C2C2E]">
+                <div class="flex flex-col justify-center">
+                    <h3 id="chat_name" class="font-semibold text-[16px] leading-tight text-white">--</h3>
+                    <span class="text-[11px] text-gray-400 leading-tight">Toque para dados</span>
                 </div>
-                <img id="chat_avatar_header" class="w-9 h-9 rounded-full bg-gray-700 object-cover z-20">
-            </header>
-
-            <div id="msg-container" class="flex-1 overflow-y-auto p-4 pb-4 bg-black"></div>
-
-            <div class="bg-[#1C1C1E] border-t border-[#2c2c2e] p-2 flex items-end gap-2 pb-[max(10px,var(--safe-bottom))] relative z-30">
-                <button onclick="document.getElementById('media_input').click()" class="text-[#FF3B30] p-2 mb-1"><i class="fa-solid fa-plus text-xl"></i></button>
-                <input type="file" id="media_input" hidden accept="image/*" onchange="handleMediaSend(event)">
-                <div class="flex-1 bg-[#2C2C2E] rounded-2xl min-h-[36px] flex items-center px-3 py-1 mb-1 border border-[#38383A]">
-                    <input id="chat-input" class="w-full bg-transparent outline-none text-white py-1" placeholder="" onkeydown="handleInputKey(event)">
-                </div>
-                <button onclick="sendMessage()" class="text-[#FF3B30] p-2 mb-1"><i class="fa-solid fa-paper-plane text-lg"></i></button>
             </div>
+        </header>
+
+        <div id="msg-container" class="flex-1 overflow-y-auto p-4 flex flex-col pb-4"></div>
+
+        <div class="bg-[#161616] border-t border-[#2C2C2E] px-2 py-2 flex items-end gap-2 pb-safe shrink-0">
+            <button onclick="document.getElementById('media_input').click()" class="text-[#FF3B30] p-2 mb-1">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </button>
+            <input type="file" id="media_input" hidden accept="image/*,video/*" onchange="sendMedia(event)">
+
+            <div class="flex-1 bg-[#2C2C2E] border border-[#3A3A3C] rounded-2xl min-h-[36px] flex items-center px-3 py-1 mb-1">
+                <input id="chat-input" class="w-full bg-transparent outline-none text-[16px] text-white max-h-24" placeholder="" onkeydown="handleKey(event)">
+            </div>
+            
+            <button onclick="sendText()" id="send-btn" class="text-[#FF3B30] font-bold p-2 mb-1 hidden">Enviar</button>
+            <button onclick="toggleMic()" id="mic-btn" class="text-[#FF3B30] p-2 mb-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg></button>
         </div>
     </div>
 
-    <div id="status-preview-modal" class="fixed inset-0 z-[250] bg-black hidden flex-col">
-        <div class="flex-1 flex items-center justify-center relative bg-black">
-            <img id="status-preview-img" class="max-w-full max-h-full object-contain">
-            <button onclick="closeStatusPreview()" class="absolute top-10 left-4 text-white text-2xl drop-shadow-md bg-black/50 w-8 h-8 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="bg-black/80 p-4 pb-[max(20px,var(--safe-bottom))] flex gap-2 border-t border-[#38383A]">
-            <input id="status-caption" class="flex-1 bg-[#2C2C2E] text-white rounded-full px-4 outline-none h-12" placeholder="Legenda...">
-            <button onclick="uploadStatus()" class="bg-[#FF3B30] w-12 h-12 rounded-full text-white flex items-center justify-center"><i class="fa-solid fa-paper-plane"></i></button>
-        </div>
-    </div>
-
-    <div id="story-viewer" class="fixed inset-0 z-[300] hidden bg-black flex flex-col">
-        <div class="h-1 bg-gray-700 w-full absolute top-0 z-20 flex px-1 mt-[var(--safe-top)]"><div id="story-bar" class="h-full bg-white w-0"></div></div>
-        <div class="flex-1 relative flex items-center justify-center bg-black">
-            <img id="story-img" class="max-h-full max-w-full object-contain">
-            <div class="absolute top-6 left-4 flex items-center gap-2 z-20">
-                <img id="story-avatar" class="w-10 h-10 rounded-full border border-white">
-                <div><p id="story-user" class="text-white font-bold text-sm shadow-black drop-shadow-md"></p><p id="story-time" class="text-xs text-gray-200 shadow-black drop-shadow-md"></p></div>
-            </div>
-            <div id="story-caption-display" class="absolute bottom-20 bg-black/50 text-white p-2 text-center rounded hidden max-w-[80%]"></div>
-            <button onclick="closeStoryViewer()" class="absolute top-6 right-4 text-white text-3xl z-30">&times;</button>
-        </div>
-        <div id="story-viewers-btn" class="hidden absolute bottom-[max(30px,var(--safe-bottom))] w-full flex justify-center z-30" onclick="toggleViewersList()">
-            <div class="bg-[#1C1C1E] px-4 py-2 rounded-full flex items-center gap-2 text-white font-bold cursor-pointer border border-[#38383A]">
-                <i class="fa-solid fa-eye text-[#FF3B30]"></i> <span id="views-count">0</span>
-            </div>
-        </div>
-        <div id="viewers-sheet" class="absolute inset-x-0 bottom-0 h-1/2 bg-[#1C1C1E] rounded-t-2xl transform translate-y-full transition-transform z-40 flex flex-col border-t border-[#FF3B30]">
-            <div class="p-4 border-b border-[#38383A] flex justify-between"><span class="text-white font-bold">Visualizações</span><button onclick="toggleViewersList()" class="text-[#FF3B30]">Fechar</button></div>
-            <div id="viewers-list-content" class="flex-1 overflow-y-auto p-4"></div>
-        </div>
-    </div>
-
-    <div id="new-chat-modal" class="fixed inset-0 z-[200] hidden bg-black/80 backdrop-blur-sm">
-        <div class="absolute inset-x-0 bottom-0 top-16 bg-[#1C1C1E] rounded-t-2xl flex flex-col">
-            <div class="p-4 flex justify-between border-b border-[#38383A]">
-                <button onclick="closeModal('new-chat-modal')" class="text-[#FF3B30]">Cancelar</button>
-                <span class="text-white font-bold">Nova Conversa</span>
+    <div id="new-chat-modal" class="fixed inset-0 z-[200] hidden bg-black/70 backdrop-blur-sm">
+        <div class="absolute inset-x-0 bottom-0 bg-[#1C1C1E] rounded-t-2xl p-4 pb-10 border-t border-[#3A3A3C]">
+            <div class="flex justify-between mb-4">
+                <button onclick="document.getElementById('new-chat-modal').classList.add('hidden')" class="text-[#FF3B30] font-bold">Cancelar</button>
+                <span class="font-bold text-white">Nova Conversa</span>
                 <span class="w-10"></span>
             </div>
-            <div class="p-4">
-                <input id="search-user-input" placeholder="Buscar Usuário..." class="w-full bg-[#2C2C2E] text-white p-3 rounded-lg outline-none mb-4 focus:ring-1 focus:ring-[#FF3B30]">
-                <button onclick="searchUsers()" class="w-full bg-[#FF3B30] text-white p-3 rounded-lg font-bold mb-4">Buscar</button>
-                <div id="search-results" class="mt-4 divide-y divide-[#38383A]"></div>
-            </div>
+            <input id="new-chat-input" placeholder="Usuário exato..." class="w-full p-3 rounded-lg border border-[#3A3A3C] bg-[#2C2C2E] text-white outline-none">
+            <button onclick="startChat()" class="w-full bg-[#FF3B30] active:bg-red-700 text-white font-bold py-3 mt-4 rounded-lg transition">Iniciar</button>
         </div>
     </div>
 
-    <div id="contact-info-modal" class="fixed inset-0 z-[200] hidden bg-black/70 backdrop-blur-sm" onclick="this.classList.add('hidden')">
-        <div class="absolute inset-x-0 bottom-0 bg-[#1C1C1E] rounded-t-2xl p-6 flex flex-col items-center pb-[max(30px,var(--safe-bottom))]" onclick="event.stopPropagation()">
-            <img id="info_avatar" class="w-24 h-24 rounded-full bg-gray-700 object-cover mb-4 border-2 border-[#FF3B30]">
-            <h2 id="info_name" class="text-2xl font-bold text-white">Nome</h2>
-            <p id="info_seen" class="text-[#FF3B30] text-sm mb-4">--</p>
-            <p id="info_bio" class="text-gray-400 text-center bg-[#2C2C2E] p-3 rounded-lg w-full">--</p>
+    <div id="contact-modal" class="fixed inset-0 z-[200] hidden bg-black/70 backdrop-blur-sm" onclick="this.classList.add('hidden')">
+        <div class="absolute inset-x-0 bottom-0 bg-[#1C1C1E] rounded-t-2xl h-[70%] p-6 flex flex-col items-center border-t border-[#3A3A3C]" onclick="event.stopPropagation()">
+            <img id="info_avatar" class="w-32 h-32 rounded-full bg-gray-700 object-cover mb-4 shadow-lg border-2 border-[#2C2C2E]">
+            <h2 id="info_name" class="text-2xl font-bold mb-1 text-white">Nome</h2>
+            <p id="info_bio" class="text-gray-400 text-center bg-[#2C2C2E] p-4 rounded-xl w-full shadow-sm">Sem recado.</p>
         </div>
     </div>
 
     <script>
         const socket = io();
-        let currentUser = null;
-        let activeChat = null;
-        let isEditingChats = false;
-        let currentStatusPreview = null;
-        let storyTimer = null;
-        
-        const usersCache = {};
+        let me = null, active = null, rec = null, chunks = [];
 
+        // --- AUTH ---
         window.onload = () => {
-            const saved = localStorage.getItem('whats_black_user');
-            if (saved) {
-                try {
-                    currentUser = JSON.parse(saved);
-                    if(currentUser && currentUser.username) initializeApp();
-                    else throw new Error("Dados inválidos");
-                } catch(e) {
-                    localStorage.removeItem('whats_black_user');
-                }
-            }
+            const s = localStorage.getItem('whats_v4');
+            if(s) { me = JSON.parse(s); enter(); }
         };
-
-        async function api(url, method = 'GET', body = null) {
-            try {
-                const opts = { method, headers: { 'Content-Type': 'application/json' } };
-                if (body) opts.body = JSON.stringify(body);
-                const res = await fetch(url, opts);
-                return res.ok ? await res.json() : null;
-            } catch { return null; }
-        }
-
-        async function handleAuth(type) {
+        async function auth(ep) {
             const u = document.getElementById('u_auth').value.trim();
             const p = document.getElementById('p_auth').value.trim();
-            if (!u || !p) return alert("Preencha tudo");
-            
-            const endpoint = type === 'login' ? '/auth/login' : '/auth/register';
-            const res = await fetch(endpoint, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ username: u, password: p })
-            });
-
-            if (res.ok) {
-                const data = await res.json();
-                if (type === 'register') { 
-                    alert("Criado! Faça login."); 
-                    handleAuth('login');
-                } else {
-                    currentUser = data;
-                    localStorage.setItem('whats_black_user', JSON.stringify(currentUser));
-                    initializeApp();
-                }
-            } else alert("Erro. Verifique os dados.");
+            if(!u || !p) return alert("Preencha");
+            const r = await fetch('/'+ep, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+            if(r.ok) { if(ep==='login'){ me=await r.json(); localStorage.setItem('whats_v4', JSON.stringify(me)); enter(); } else { alert("Criado!"); auth('login'); }}
+            else alert("Erro");
         }
-
-        function initializeApp() {
+        function enter() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
-            
-            socket.emit('join', currentUser.username);
-            
-            updateProfileUI();
-            loadChatList();
-            
-            if("Notification" in window && Notification.permission === "default") Notification.requestPermission();
+            socket.emit('join', me.username);
+            updateMeUI(); loadChats();
+        }
+        function logout() { localStorage.removeItem('whats_v4'); location.reload(); }
 
-            socket.on('new_msg', (msg) => {
-                if (activeChat === msg.s) { 
-                    renderMsg(msg); 
-                    socket.emit('mark_read', { s: msg.s, r: currentUser.username }); 
-                    scrollChat(); 
-                }
-                loadChatList();
+        // --- UI ---
+        function switchTab(t) {
+            ['chats','status','settings'].forEach(x => {
+                document.getElementById('tab-'+x).classList.add('hidden');
+                document.getElementById('btn-'+x).classList.remove('active-tab');
+                document.getElementById('btn-'+x).classList.add('text-[#8E8E93]');
             });
-            
-            socket.on('msgs_read_update', () => { loadChatList(); });
-            socket.on('status_result', (d) => { if(activeChat === d.username) updateHeaderStatus(d); });
-            socket.on('contact_status_update', (d) => { if(activeChat === d.username) updateHeaderStatus(d); });
+            document.getElementById('tab-'+t).classList.remove('hidden');
+            document.getElementById('btn-'+t).classList.add('active-tab');
+            document.getElementById('btn-'+t).classList.remove('text-[#8E8E93]');
+            if(t==='chats') loadChats();
+            if(t==='status') loadStatus();
         }
 
-        function logout() { localStorage.removeItem('whats_black_user'); location.reload(); }
-
-        // --- BUSCA E INÍCIO DE CHAT ---
-        async function searchUsers() {
-            const val = document.getElementById('search-user-input').value;
-            if(!val) return;
-            const res = await api(`/api/search/${val}`);
-            const div = document.getElementById('search-results');
-            div.innerHTML = '';
+        // --- CHAT LOGIC ---
+        async function openChat(u) {
+            active = u;
+            const ui = await fetch('/user/'+u).then(r=>r.json());
+            document.getElementById('chat_name').innerText = u;
+            document.getElementById('chat_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
+            document.getElementById('info_name').innerText = u;
+            document.getElementById('info_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
+            document.getElementById('info_bio').innerText = ui.bio || "Sem recado";
             
-            if(res && res.length > 0) {
-                res.forEach(u => {
-                    if(u.username === currentUser.username) return;
-                    div.innerHTML += `
-                        <div class="flex justify-between items-center py-3">
-                            <div class="flex items-center gap-3">
-                                <img src="${u.avatar || `https://ui-avatars.com/api/?name=${u.username}`}" class="w-10 h-10 rounded-full object-cover bg-gray-700">
-                                <span class="text-white font-bold">${u.username}</span>
-                            </div>
-                            <button onclick="startDirectChat('${u.username}')" class="text-[#FF3B30] text-sm font-bold border border-[#FF3B30] px-3 py-1 rounded-full hover:bg-[#FF3B30] hover:text-white transition">Conversar</button>
-                        </div>`;
-                });
-            } else {
-                div.innerHTML = '<p class="text-gray-500 text-center">Nenhum usuário encontrado.</p>';
-            }
+            document.getElementById('chat-room').classList.add('chat-open');
+            
+            const msgs = await fetch(`/messages/${me.username}/${active}`).then(r=>r.json());
+            document.getElementById('msg-container').innerHTML = '';
+            msgs.forEach(addMsg);
+            socket.emit('mark_read', {s:active, r:me.username});
+            scrollToBottom();
         }
-
-        function startDirectChat(username) {
-            closeModal('new-chat-modal');
-            openChat(username);
-        }
-
-        // --- LISTA DE CONVERSAS ---
-        async function loadChatList() {
-            const chats = await api(`/api/chats/${currentUser.username}`);
-            const list = document.getElementById('chat-list');
-            list.innerHTML = '';
-            
-            if(!chats || chats.length === 0) {
-                list.innerHTML = '<div class="text-center text-gray-600 mt-10 text-sm">Nenhuma conversa iniciada.</div>'; return;
-            }
-
-            chats.forEach(c => {
-                const isMe = c.last_sender === currentUser.username;
-                const avatarUrl = c.avatar || `https://ui-avatars.com/api/?name=${c.contact}`;
-                
-                usersCache[c.contact] = { avatar: avatarUrl };
-
-                let statusIcon = '';
-                if(isMe) {
-                    if(c.last_status == 2) statusIcon = '<i class="fa-solid fa-check-double text-[#FF3B30] text-[10px] mr-1"></i>';
-                    else if(c.last_status == 1) statusIcon = '<i class="fa-solid fa-check-double text-gray-500 text-[10px] mr-1"></i>';
-                    else statusIcon = '<i class="fa-solid fa-check text-gray-500 text-[10px] mr-1"></i>';
-                }
-                
-                const lastMsg = c.last_type === 'image' ? '<i class="fa-solid fa-camera"></i> Foto' : (c.last_msg || '');
-
-                list.innerHTML += `
-                    <div class="flex items-center py-3 pr-4 cursor-pointer relative hover:bg-[#1C1C1E] group ${isEditingChats ? 'editing' : ''}">
-                        <div class="delete-btn flex items-center justify-center">
-                            <button onclick="deleteChat('${c.contact}')" class="w-6 h-6 bg-[#FF3B30] rounded-full text-white"><i class="fa-solid fa-minus"></i></button>
-                        </div>
-                        <div class="flex items-center gap-3 w-full" onclick="if(!isEditingChats) openChat('${c.contact}')">
-                            <img src="${avatarUrl}" class="w-14 h-14 rounded-full object-cover shrink-0 bg-gray-800">
-                            <div class="flex-1 min-w-0 border-b border-[#2c2c2e] pb-3 ml-2 group-hover:border-transparent">
-                                <div class="flex justify-between items-baseline">
-                                    <h3 class="font-bold text-white text-[16px]">${c.contact}</h3>
-                                    <span class="text-[14px] ${c.unread ? 'text-[#FF3B30]' : 'text-gray-500'}">${formatTime(c.last_time)}</span>
-                                </div>
-                                <div class="flex justify-between items-center mt-0.5">
-                                    <p class="text-gray-400 text-[15px] truncate flex-1">${statusIcon} ${lastMsg}</p>
-                                    ${c.unread ? `<span class="bg-[#FF3B30] text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold shadow-md">${c.unread}</span>` : ''}
-                                </div>
-                            </div>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        function toggleEditMode() {
-            isEditingChats = !isEditingChats;
-            document.getElementById('btn-edit-chats').innerText = isEditingChats ? 'OK' : 'Editar';
-            loadChatList();
-        }
-
-        function deleteChat(contact) {
-            if(confirm(`Apagar conversa com ${contact}?`)) {
-                socket.emit('delete_chat', { me: currentUser.username, partner: contact });
-                setTimeout(loadChatList, 500);
-            }
-        }
-
-        // --- JANELA DO CHAT ---
-        async function openChat(name) {
-            activeChat = name;
-            
-            const avatar = usersCache[name] ? usersCache[name].avatar : `https://ui-avatars.com/api/?name=${name}`;
-            
-            document.getElementById('chat_name').innerText = name;
-            document.getElementById('chat_avatar_header').src = avatar;
-            
-            const room = document.getElementById('chat-room');
-            room.classList.remove('screen-hidden');
-            room.classList.add('screen-active');
-            
-            const msgs = await api(`/api/messages/${currentUser.username}/${name}`);
-            const box = document.getElementById('msg-container');
-            box.innerHTML = '';
-            msgs.forEach(renderMsg);
-            
-            socket.emit('mark_read', { s: name, r: currentUser.username });
-            socket.emit('get_status_detailed', name);
-            scrollChat();
-            
-            closeModal('new-chat-modal');
-        }
-
+        
         function closeChat() {
-            document.getElementById('chat-room').classList.add('screen-hidden');
-            document.getElementById('chat-room').classList.remove('screen-active');
-            activeChat = null;
-            loadChatList();
+            document.getElementById('chat-room').classList.remove('chat-open');
+            active = null;
+            loadChats();
         }
 
-        function renderMsg(m) {
-            const isMe = m.s === currentUser.username;
-            let content = m.type === 'image' ? `<img src="${m.c}" class="rounded-lg max-w-full block" onclick="viewImage(this.src)">` : m.c;
-            
-            let tick = '';
+        async function loadChats() {
+            const d = await fetch('/chats/'+me.username).then(r=>r.json());
+            document.getElementById('chat-list').innerHTML = d.map(c => `
+                <div onclick="openChat('${c.contact}')" class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E] cursor-pointer bg-[#161616] active:bg-[#2C2C2E] transition">
+                    <img src="${c.avatar||'https://ui-avatars.com/api/?name='+c.contact+'&background=random'}" class="w-14 h-14 rounded-full bg-gray-700 object-cover shrink-0">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline">
+                            <h3 class="font-bold text-[17px] text-white truncate">${c.contact}</h3>
+                            <span class="text-[14px] ${c.unread>0?'text-[#FF3B30] font-bold':'text-gray-500'}">${c.last_time||''}</span>
+                        </div>
+                        <p class="text-[15px] text-gray-400 truncate h-5">${c.last_type==='image'?'📷 Foto':(c.last_msg||'')}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function addMsg(m) {
+            const isMe = m.s === me.username;
+            let body = '';
+            if(m.type==='text') body = `<span class="break-words">${m.c}</span>`;
+            else if(m.type==='image') body = `<img src="${m.c}" class="rounded-lg max-w-full border border-gray-600">`;
+            else if(m.type==='video') body = `<video src="${m.c}" controls class="rounded-lg max-w-full border border-gray-600"></video>`;
+            else if(m.type==='audio') body = `<audio src="${m.c}" controls class="h-10 w-48"></audio>`;
+
+            // Lógica dos Ticks (Sent, Delivered, Read)
+            let ticks = '';
             if(isMe) {
-                 if(m.status == 2) tick = '<i class="fa-solid fa-check-double text-[#FF3B30]"></i>';
-                 else if(m.status == 1) tick = '<i class="fa-solid fa-check-double text-gray-500"></i>';
-                 else tick = '<i class="fa-solid fa-check text-gray-500"></i>';
+                if(m.status === 0) ticks = '<span class="tick-icon tick-sent">✓</span>'; // Enviado (1 tick cinza)
+                else if(m.status === 1) ticks = '<span class="tick-icon tick-sent">✓✓</span>'; // Recebido (2 ticks cinza)
+                else if(m.status >= 2) ticks = '<span class="tick-icon tick-read">✓✓</span>'; // Lido (2 ticks vermelho)
             }
 
             const div = document.createElement('div');
-            div.className = `msg-row ${isMe ? 'msg-me' : 'msg-them'}`;
-            div.innerHTML = `
-                <div class="msg-bubble">
-                    ${content}
-                    <div class="msg-meta">${formatTime(m.time)} ${tick}</div>
-                </div>`;
-            const box = document.getElementById('msg-container');
-            box.appendChild(div);
+            div.className = `msg-bubble flex flex-col ${isMe ? 'msg-me' : 'msg-them'}`;
+            // Ajustado cor do horário para garantir contraste
+            div.innerHTML = `${body}<div class="text-[10px] text-gray-300 self-end mt-1 flex items-center gap-1 min-w-[50px] justify-end relative -mb-1">${m.f_time||''} ${ticks}</div>`;
+            document.getElementById('msg-container').appendChild(div);
         }
 
-        function sendMessage() {
-            const ipt = document.getElementById('chat-input');
-            const txt = ipt.value.trim();
-            if(!txt) return;
-            const msg = { s: currentUser.username, r: activeChat, c: txt, type: 'text' };
-            socket.emit('send_msg', msg);
-            renderMsg({...msg, time: new Date(), status: 0});
-            ipt.value = '';
-            scrollChat();
+        // --- ACTIONS ---
+        function handleKey(e) {
+            const v = e.target.value;
+            document.getElementById('send-btn').classList.toggle('hidden', !v);
+            document.getElementById('mic-btn').classList.toggle('hidden', !!v);
+            if(e.key==='Enter') sendText();
         }
-        
-        async function handleMediaSend(e) {
+        function sendText() {
+            const i = document.getElementById('chat-input');
+            const txt = i.value.trim();
+            if(!txt) return;
+            const data = { s:me.username, r:active, c:txt, type:'text' };
+            socket.emit('send_msg', data);
+            addMsg({...data, f_time:'Agora', status:0}); // Status 0 = Relógio/Enviando (Simulado)
+            scrollToBottom();
+            i.value = '';
+            document.getElementById('send-btn').classList.add('hidden');
+            document.getElementById('mic-btn').classList.remove('hidden');
+        }
+        function sendMedia(e) {
             const f = e.target.files[0];
             if(!f) return;
-            if(f.size > 5 * 1024 * 1024) return alert("Imagem muito grande (Max 5MB)");
-
             const r = new FileReader();
             r.onload = () => {
-                const msg = { s: currentUser.username, r: activeChat, c: r.result, type: 'image' };
-                socket.emit('send_msg', msg);
-                renderMsg({...msg, time: new Date(), status: 0});
-                scrollChat();
+                const type = f.type.startsWith('video') ? 'video' : 'image';
+                const data = { s:me.username, r:active, c:r.result, type:type };
+                socket.emit('send_msg', data);
+                addMsg({...data, f_time:'Agora', status:0});
+                scrollToBottom();
             };
             r.readAsDataURL(f);
-            e.target.value = '';
+        }
+        async function toggleMic() {
+            if(!rec) {
+                const s = await navigator.mediaDevices.getUserMedia({audio:true});
+                rec = new MediaRecorder(s); chunks=[];
+                rec.ondataavailable = e => chunks.push(e.data);
+                rec.onstop = () => {
+                    const r = new FileReader();
+                    r.readAsDataURL(new Blob(chunks));
+                    r.onloadend = () => {
+                        const data = { s:me.username, r:active, c:r.result, type:'audio' };
+                        socket.emit('send_msg', data);
+                        addMsg({...data, f_time:'Agora', status:0}); scrollToBottom();
+                    }
+                };
+                rec.start();
+                document.getElementById('mic-btn').innerHTML = '🟥';
+            } else { rec.stop(); rec=null; document.getElementById('mic-btn').innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>'; }
         }
 
-        function handleInputKey(e) { if(e.key === 'Enter') sendMessage(); }
-        function scrollChat() { 
-            setTimeout(() => {
-                const c = document.getElementById('msg-container'); 
-                c.scrollTop = c.scrollHeight; 
-            }, 50);
+        // --- PERFIL ---
+        function updateMeUI() {
+            const pic = me.avatar || `https://ui-avatars.com/api/?name=${me.username}&background=random`;
+            document.getElementById('settings_avatar').src = pic;
+            document.getElementById('my_status_pic').src = pic;
+            document.getElementById('settings_name').innerText = me.username;
+            document.getElementById('settings_bio').value = me.bio || '';
         }
-
-        // --- STATUS / STORIES ---
-        function handleStatusClick() { document.getElementById('status_file_input').click(); }
-        
-        function openStatusPreview(e) {
-            const f = e.target.files[0];
-            if(!f) return;
-            const r = new FileReader();
-            r.onload = () => {
-                currentStatusPreview = r.result;
-                document.getElementById('status-preview-img').src = currentStatusPreview;
-                document.getElementById('status-preview-modal').classList.remove('hidden');
-                document.getElementById('status-preview-modal').classList.add('flex');
-            }; r.readAsDataURL(f);
-            e.target.value = '';
-        }
-
-        function closeStatusPreview() {
-            document.getElementById('status-preview-modal').classList.add('hidden');
-            document.getElementById('status-preview-modal').classList.remove('flex');
-            currentStatusPreview = null;
-        }
-
-        async function uploadStatus() {
-            const cap = document.getElementById('status-caption').value;
-            if(!currentStatusPreview) return;
-            
-            await api('/api/story', 'POST', { username: currentUser.username, content: currentStatusPreview, type: 'image', caption: cap, bg_color: '#000' });
-            closeStatusPreview();
-            loadStatus();
-        }
-
-        async function loadStatus() {
-            const list = document.getElementById('status-list');
-            const stories = await api(`/api/stories/${currentUser.username}`);
-            list.innerHTML = '';
-            
-            if(!stories || stories.length === 0) { list.innerHTML = '<p class="text-gray-500 text-sm p-2">Nenhuma atualização recente.</p>'; return; }
-
-            const map = {};
-            stories.forEach(s => { 
-                map[s.username] = s; 
-            });
-
-            Object.values(map).forEach(s => {
-                const isMe = s.username === currentUser.username;
-                const avatar = s.avatar || `https://ui-avatars.com/api/?name=${s.username}`;
-                usersCache[s.username] = { avatar: avatar };
-
-                list.innerHTML += `
-                    <div class="flex items-center gap-3 py-2 cursor-pointer rounded-lg hover:bg-[#1C1C1E]" onclick="openStoryViewer('${s.username}')">
-                        <div class="p-[2px] rounded-full border-2 border-[#FF3B30]">
-                            <img src="${avatar}" class="w-12 h-12 rounded-full object-cover border-2 border-black bg-gray-700">
-                        </div>
-                        <div class="border-b border-[#2c2c2e] flex-1 pb-3">
-                            <h3 class="font-bold text-white">${isMe ? 'Meu Status' : s.username}</h3>
-                            <p class="text-gray-500 text-xs">${formatTime(s.time)}</p>
-                        </div>
-                    </div>`;
-            });
-        }
-
-        let currentStories = [];
-        let storyIdx = 0;
-
-        async function openStoryViewer(user) {
-            const avatar = usersCache[user] ? usersCache[user].avatar : `https://ui-avatars.com/api/?name=${user}`;
-            const all = await api(`/api/stories/${currentUser.username}`);
-            currentStories = all.filter(s => s.username === user);
-            
-            if(currentStories.length === 0) return;
-            
-            storyIdx = 0;
-            document.getElementById('story-viewer').classList.remove('hidden');
-            showStory(user, avatar);
-        }
-
-        function showStory(user, avatar) {
-            if(storyIdx >= currentStories.length) { closeStoryViewer(); return; }
-            const s = currentStories[storyIdx];
-            
-            document.getElementById('story-img').src = s.content;
-            document.getElementById('story-user').innerText = user;
-            document.getElementById('story-avatar').src = avatar;
-            document.getElementById('story-time').innerText = formatTime(s.time);
-            
-            const cap = document.getElementById('story-caption-display');
-            if(s.caption) { cap.innerText = s.caption; cap.classList.remove('hidden'); } else cap.classList.add('hidden');
-
-            const bar = document.getElementById('story-bar');
-            bar.style.transition = 'none'; bar.style.width = '0%';
-            void bar.offsetWidth;
-            bar.style.transition = 'width 5s linear'; 
-            bar.style.width = '100%';
-
-            if(user !== currentUser.username) api('/api/view-story', 'POST', { id: s.id, viewer: currentUser.username });
-            
-            const vBtn = document.getElementById('story-viewers-btn');
-            if(user === currentUser.username) {
-                vBtn.classList.remove('hidden');
-                vBtn.onclick = () => loadViewers(s.id);
-            } else vBtn.classList.add('hidden');
-
-            clearTimeout(storyTimer);
-            storyTimer = setTimeout(() => { 
-                storyIdx++; 
-                showStory(user, avatar); 
-            }, 5000);
-        }
-
-        function closeStoryViewer() {
-            clearTimeout(storyTimer);
-            document.getElementById('story-viewer').classList.add('hidden');
-            document.getElementById('viewers-sheet').classList.add('translate-y-full');
-            document.getElementById('story-img').src = ""; 
-        }
-
-        async function loadViewers(sid) {
-            const list = document.getElementById('viewers-list-content');
-            document.getElementById('viewers-sheet').classList.remove('translate-y-full');
-            const vs = await api(`/api/story-viewers/${sid}`);
-            document.getElementById('views-count').innerText = vs.length;
-            
-            list.innerHTML = '';
-            if(vs.length === 0) list.innerHTML = '<p class="text-gray-500">Ninguém viu ainda.</p>';
-            vs.forEach(v => {
-                 list.innerHTML += `<div class="flex items-center gap-2 py-2 border-b border-[#38383A]"><span class="font-bold text-white">${v.username}</span><span class="text-xs text-gray-500">${formatTime(v.time)}</span></div>`;
-            });
-        }
-
-        function toggleViewersList() { document.getElementById('viewers-sheet').classList.toggle('translate-y-full'); }
-
-        // --- PERFIL E TABs ---
-        function updateProfileUI() {
-            const av = currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.username}`;
-            document.getElementById('settings_avatar').src = av;
-            document.getElementById('my_status_pic').src = av;
-            document.getElementById('settings_name').innerText = currentUser.username;
-            document.getElementById('settings_bio').value = currentUser.bio || '';
-        }
-        
         async function updateProfilePic(e) {
-            const f = e.target.files[0];
-            if(!f) return;
+            const f = e.target.files[0]; if(!f) return;
             const r = new FileReader();
             r.onload = async () => {
-                currentUser.avatar = r.result;
-                await api('/api/update-profile', 'POST', currentUser);
-                updateProfileUI();
-                localStorage.setItem('whats_black_user', JSON.stringify(currentUser));
+                me.avatar = r.result;
+                await fetch('/update-profile', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(me)});
+                updateMeUI(); localStorage.setItem('whats_v4', JSON.stringify(me));
             }; r.readAsDataURL(f);
         }
-
-        function saveBio(v) { 
-            currentUser.bio = v; 
-            api('/api/update-profile', 'POST', currentUser); 
-            localStorage.setItem('whats_black_user', JSON.stringify(currentUser)); 
+        async function saveBio(v) {
+            me.bio = v;
+            await fetch('/update-profile', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(me)});
+            localStorage.setItem('whats_v4', JSON.stringify(me));
         }
 
-        function switchTab(t) {
-            ['chats', 'status', 'settings'].forEach(id => {
-                document.getElementById('tab-'+id).classList.add('screen-hidden');
-                document.getElementById('tab-'+id).classList.remove('screen-active');
-                
-                const btn = document.getElementById('btn-'+id);
-                btn.className = "flex flex-col items-center gap-1 w-16 text-[#8E8E93] transition-colors";
-                const icon = btn.querySelector('i');
-                if(id === 'status') icon.className = "fa-regular fa-circle-dot text-[24px]";
-                else if(id === 'chats') icon.className = "fa-regular fa-comment text-[24px]";
-                else if(id === 'settings') icon.className = "fa-solid fa-gear text-[24px]";
-            });
-            
-            document.getElementById('tab-'+t).classList.remove('screen-hidden');
-            document.getElementById('tab-'+t).classList.add('screen-active');
-            
-            const activeBtn = document.getElementById('btn-'+t);
-            activeBtn.className = "flex flex-col items-center gap-1 w-16 text-[#FF3B30] transition-colors";
-            
-            if(t === 'status') activeBtn.querySelector('i').className = "fa-solid fa-circle-dot text-[24px]";
-            if(t === 'chats') activeBtn.querySelector('i').className = "fa-solid fa-comment text-[24px]";
-            
-            if(t === 'chats') loadChatList();
-            if(t === 'status') loadStatus();
+        // --- STATUS ---
+        async function postStatus(e) {
+            const f=e.target.files[0]; if(!f) return;
+            const r=new FileReader(); r.onload=async()=>{ await fetch('/post-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:me.username,content:r.result})}); loadStatus(); alert("Postado!"); }; r.readAsDataURL(f);
+        }
+        async function loadStatus() {
+            const d=await fetch('/get-status').then(r=>r.json());
+            document.getElementById('status-list').innerHTML=d.map(s=>`<div class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E]"><div class="p-[2px] rounded-full border-2 border-[#FF3B30]"><img src="${s.avatar}" class="w-14 h-14 rounded-full object-cover"></div><div><h3 class="font-bold text-white">${s.username}</h3><p class="text-xs text-gray-500">Novo Status</p></div></div>`).join('');
         }
 
-        function filterChats() {
-            const q = document.getElementById('chat-search').value.toLowerCase();
-            document.querySelectorAll('#chat-list > div').forEach(d => {
-                const n = d.querySelector('h3').innerText.toLowerCase();
-                d.style.display = n.includes(q) ? 'flex' : 'none';
-            });
+        // --- UTILS ---
+        function scrollToBottom(){const c=document.getElementById('msg-container');c.scrollTop=c.scrollHeight;}
+        async function startChat(){
+            const u=document.getElementById('new-chat-input').value.trim();
+            const r=await fetch('/user/'+u).then(x=>x.json());
+            if(r.username){ document.getElementById('new-chat-modal').classList.add('hidden'); openChat(u); } else alert("Não achou");
         }
-
-        function updateHeaderStatus(d) {
-             const el = document.getElementById('chat_status');
-             if(d.status === 'online') { 
-                 el.innerText = 'Online'; 
-                 el.className = 'text-[11px] text-[#FF3B30] font-bold'; 
-             } else { 
-                 const t = new Date(d.last_seen);
-                 const timeStr = isNaN(t) ? '--' : t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-                 el.innerText = `Visto às ${timeStr}`;
-                 el.className = 'text-[11px] text-gray-400 font-medium';
-             }
-        }
-
-        function openModal(id){ document.getElementById(id).classList.remove('hidden'); }
-        function closeModal(id){ document.getElementById(id).classList.add('hidden'); }
-        function viewImage(src) { /* Expandir imagem */ }
-        function formatTime(d) { if(!d) return ''; return new Date(d).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
         
-        async function openContactInfo() {
-            if(!activeChat) return;
-            const u = await api(`/api/user/${activeChat}`);
-            document.getElementById('contact-info-modal').classList.remove('hidden');
-            
-            const av = u.avatar || (usersCache[activeChat] ? usersCache[activeChat].avatar : `https://ui-avatars.com/api/?name=${u.username}`);
-            
-            document.getElementById('info_avatar').src = av;
-            document.getElementById('info_name').innerText = u.username;
-            document.getElementById('info_bio').innerText = u.bio || 'Sem recado';
-            document.getElementById('info_seen').innerText = u.last_seen === 'online' ? 'Online' : 'Visto recentemente';
-        }
+        // --- SOCKET EVENTOS ---
+        socket.on('new_msg', m => { 
+            if(active===m.s){
+                addMsg(m);
+                socket.emit('mark_read',{s:active,r:me.username});
+                scrollToBottom();
+            } else {
+                loadChats();
+            }
+        });
+
+        socket.on('msg_sent_ok', m => {
+            // Atualiza status se a mensagem for sua e estiver no chat aberto
+            if(active === m.r) {
+                const bubbles = document.querySelectorAll('.msg-me');
+                const lastBubble = bubbles[bubbles.length - 1];
+                if(lastBubble) {
+                   // Força atualização visual simples para o último balão (exemplo simplificado)
+                   // Em app real, usaria ID único por msg para atualizar DOM específico
+                   lastBubble.querySelector('.tick-icon').innerHTML = '✓✓'; // Recebido Servidor
+                }
+            }
+        });
+
+        socket.on('msgs_read_update', d => { 
+            if(active===d.reader) {
+                // Atualiza todos os ticks cinzas para vermelhos (lidos) na tela atual
+                document.querySelectorAll('.tick-sent').forEach(e => {
+                    e.classList.remove('tick-sent');
+                    e.classList.add('tick-read');
+                });
+            }
+        });
     </script>
 </body>
 </html>
