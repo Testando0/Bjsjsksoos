@@ -26,10 +26,15 @@ if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, '[]');
 // --- FUNÇÕES AUXILIARES ---
 
 // Ler usuários do JSON
+// Substitua a linha do getUsers por esta:
 const getUsers = () => {
     try {
-        return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+        const data = fs.readFileSync(USERS_FILE, 'utf8');
+        const parsed = JSON.parse(data || '[]');
+        // Se não for uma lista, retorna lista vazia para não dar erro de .find()
+        return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
+        console.error("Erro ao ler users.json, resetando para lista vazia.");
         return [];
     }
 };
