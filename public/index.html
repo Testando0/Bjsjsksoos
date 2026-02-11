@@ -15,7 +15,7 @@
             --text-primary: #FFFFFF;
             --text-secondary: #8E8E93;
             --separator: #2C2C2E;
-            --accent-color: #0A84FF; /* Azul iOS Padrão ou #FF3B30 para Red */
+            --accent-color: #0A84FF;
             --bubble-me: #3E1010; /* Vermelho Escuro Sutil */
             --bubble-them: #2C2C2E;
             --chat-bg-color: #0b141a;
@@ -80,6 +80,11 @@
             height: 100%; background: white; width: 0%;
         }
         
+        /* Garantir que a mídia do story não corte */
+        .story-media {
+            width: 100%; height: 100%; object-fit: contain; display: block;
+        }
+
         /* STATUS RING */
         .status-ring { padding: 2px; border-radius: 50%; border: 2px solid #0A84FF; }
         .status-ring-viewed { border-color: #545458; }
@@ -94,7 +99,7 @@
         ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
         
         .tick-icon { font-size: 11px; margin-left: 3px; font-weight: bold; letter-spacing: -1px; }
-        .tick-read { color: #34B7F1; /* Azul WhatsApp ou mantem tema */ }
+        .tick-read { color: #34B7F1; }
         .tick-sent { color: #8E8E93; }
 
         /* MODAL DE CRIAÇÃO DE STATUS */
@@ -315,7 +320,39 @@
         const socket = io();
         let me = null, active = null, rec = null, chunks = [];
         
-        // --- LOGICA DE STATUS ---
+        // --- HELPERS DE TEMPO ---
+        // Converte string SQLite UTC (ex: 2023-01-01 15:00:00) para Objeto Date Local
+        function parseUTCTime(utcString) {
+            if(!utcString) return new Date();
+            // Adiciona 'Z' para forçar interpretação como UTC no construtor Date
+            const iso = utcString.replace(' ', 'T') + 'Z'; 
+            return new Date(iso);
+        }
+
+        // Retorna hora HH:MM local
+        function formatTimeUTC(utcString) {
+            if(!utcString) return '';
+            const d = parseUTCTime(utcString);
+            return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+        
+        // Retorna data amigável (Ontem, Hoje, ou data)
+        function formatDayUTC(utcString) {
+            if(!utcString) return '';
+            const d = parseUTCTime(utcString);
+            const now = new Date();
+            const isToday = d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            if(isToday) return 'Hoje';
+            
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const isYesterday = d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear();
+            
+            if(isYesterday) return 'Ontem';
+            return d.toLocaleDateString();
+        }
+
+        // --- LÓGICA DE STATUS ---
         let currentStories = {}; // { username: [story1, story2] }
         let currentViewerUser = null;
         let currentStoryIndex = 0;
@@ -365,11 +402,9 @@
             document.getElementById('chat_name').innerText = u;
             document.getElementById('chat_status').innerText = 'Carregando...'; 
             
-            // Busca info inicial do usuário
             updatePresenceUI(u);
 
             document.getElementById('chat_avatar').src = `https://ui-avatars.com/api/?name=${u}&background=random`;
-            // Fetch detalhes completos para modal
             fetch('/user/'+u).then(r=>r.json()).then(ui => {
                  document.getElementById('chat_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
                  document.getElementById('info_name').innerText = u;
@@ -395,10 +430,8 @@
                 } else {
                     stDiv.className = 'text-[11px] text-gray-400 leading-tight';
                     if(u.last_seen) {
-                        const d = new Date(u.last_seen); // Server sends local string, convert to object
-                        // Format: "Visto por último hoje às 14:30"
-                        const time = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                        const day = d.toLocaleDateString() === new Date().toLocaleDateString() ? 'hoje' : d.toLocaleDateString();
+                        const day = formatDayUTC(u.last_seen);
+                        const time = formatTimeUTC(u.last_seen);
                         stDiv.innerText = `Visto por último ${day} às ${time}`;
                     } else {
                         stDiv.innerText = 'Offline';
@@ -424,7 +457,7 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-baseline">
                             <h3 class="font-bold text-[17px] text-white truncate">${c.contact}</h3>
-                            <span class="text-[14px] ${c.unread>0?'text-[#0A84FF] font-bold':'text-gray-500'}">${c.last_time||''}</span>
+                            <span class="text-[14px] ${c.unread>0?'text-[#0A84FF] font-bold':'text-gray-500'}">${formatTimeUTC(c.last_time)}</span>
                         </div>
                         <p class="text-[15px] text-gray-400 truncate h-5 flex items-center gap-1">
                             ${c.last_sender === me.username ? getTickIcon(c.last_status) : ''}
@@ -452,9 +485,18 @@
             let ticks = '';
             if(isMe) ticks = getTickIcon(m.status);
 
+            // CORREÇÃO DE HORA: Se veio do socket (sem m.time ou com time raw), formata.
+            // Se for envio local imediato, usamos Agora.
+            let timeStr;
+            if (m.f_time && m.f_time === 'Agora') {
+                timeStr = 'Agora'; // Mantém para feedback imediato
+            } else {
+                timeStr = m.time ? formatTimeUTC(m.time) : new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+            }
+
             const div = document.createElement('div');
             div.className = `msg-bubble flex flex-col ${isMe ? 'msg-me' : 'msg-them'}`;
-            div.innerHTML = `${body}<div class="text-[10px] text-gray-300 self-end mt-1 flex items-center gap-1 min-w-[50px] justify-end relative -mb-1">${m.f_time||''} ${ticks}</div>`;
+            div.innerHTML = `${body}<div class="text-[10px] text-gray-300 self-end mt-1 flex items-center gap-1 min-w-[50px] justify-end relative -mb-1">${timeStr} ${ticks}</div>`;
             document.getElementById('msg-container').appendChild(div);
         }
 
@@ -469,9 +511,10 @@
             const i = document.getElementById('chat-input');
             const txt = i.value.trim();
             if(!txt) return;
-            const data = { s:me.username, r:active, c:txt, type:'text' };
+            // f_time: 'Agora' para UI otimista
+            const data = { s:me.username, r:active, c:txt, type:'text', f_time: 'Agora' };
             socket.emit('send_msg', data);
-            addMsg({...data, f_time:'Agora', status:0}); 
+            addMsg({...data, status:0}); 
             scrollToBottom();
             i.value = '';
             document.getElementById('send-btn').classList.add('hidden');
@@ -483,9 +526,9 @@
             const r = new FileReader();
             r.onload = () => {
                 const type = f.type.startsWith('video') ? 'video' : 'image';
-                const data = { s:me.username, r:active, c:r.result, type:type };
+                const data = { s:me.username, r:active, c:r.result, type:type, f_time: 'Agora' };
                 socket.emit('send_msg', data);
-                addMsg({...data, f_time:'Agora', status:0});
+                addMsg({...data, status:0});
                 scrollToBottom();
             };
             r.readAsDataURL(f);
@@ -499,9 +542,9 @@
                     const r = new FileReader();
                     r.readAsDataURL(new Blob(chunks));
                     r.onloadend = () => {
-                        const data = { s:me.username, r:active, c:r.result, type:'audio' };
+                        const data = { s:me.username, r:active, c:r.result, type:'audio', f_time: 'Agora' };
                         socket.emit('send_msg', data);
-                        addMsg({...data, f_time:'Agora', status:0}); scrollToBottom();
+                        addMsg({...data, status:0}); scrollToBottom();
                     }
                 };
                 rec.start();
@@ -509,11 +552,9 @@
             } else { rec.stop(); rec=null; document.getElementById('mic-btn').innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>'; }
         }
 
-        // --- STATUS SYSTEM (COMPLEX) ---
+        // --- STATUS SYSTEM ---
         
-        // 1. Criação
         function openStatusCreator(mode) {
-            // Reset
             statusDraft = { type: 'text', content: '', caption: '', bg_color: '#ff0055' };
             document.getElementById('st-text-input').value = '';
             document.getElementById('st-caption').value = '';
@@ -530,7 +571,6 @@
                 document.getElementById('st-controls-text').classList.remove('hidden');
                 document.getElementById('st-preview-area').style.backgroundColor = statusDraft.bg_color;
             } else {
-                // Click file input
                 document.getElementById('st-file-input').click();
             }
         }
@@ -588,23 +628,20 @@
             loadStatus();
         }
 
-        // 2. Carregamento e Agrupamento
         async function loadStatus() {
             const raw = await fetch('/get-status').then(r=>r.json());
             currentStories = {};
             
-            // Agrupar por user
             raw.forEach(s => {
                 if(!currentStories[s.username]) currentStories[s.username] = [];
                 currentStories[s.username].push(s);
             });
 
             const list = document.getElementById('status-list');
-            list.innerHTML = '';
+            list.innerHTML = ''; // Limpa antes de renderizar para evitar duplicação
             
-            // Renderiza outros usuários
             Object.keys(currentStories).forEach(u => {
-                if(u === me.username) return; // Meu status já tem lugar fixo
+                if(u === me.username) return; 
                 
                 const stories = currentStories[u];
                 const lastStory = stories[stories.length - 1];
@@ -618,13 +655,12 @@
                     </div>
                     <div>
                         <h3 class="font-bold text-white">${u}</h3>
-                        <p class="text-xs text-gray-500">${new Date(lastStory.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                        <p class="text-xs text-gray-500">${formatTimeUTC(lastStory.time)}</p>
                     </div>
                 </div>`;
                 list.insertAdjacentHTML('beforeend', html);
             });
 
-            // Atualiza anel do "Meu Status"
             const mySt = currentStories[me.username];
             const myRing = document.getElementById('my_status_pic').parentElement;
             if(mySt && mySt.length > 0) {
@@ -639,12 +675,10 @@
             else alert("Você não postou nada nas últimas 24h.");
         }
 
-        // 3. Visualização (Viewer Completo)
         function openStoryViewer(username) {
             currentViewerUser = username;
             currentStoryIndex = 0;
             
-            // Pular para o primeiro não visto se não for eu
             if(username !== me.username) {
                 const idx = currentStories[username].findIndex(s => !s.viewers.includes(me.username));
                 if(idx !== -1) currentStoryIndex = idx;
@@ -664,12 +698,10 @@
 
             const story = userStories[currentStoryIndex];
             
-            // Header Info
             document.getElementById('sv-username').innerText = currentViewerUser;
             document.getElementById('sv-avatar').src = story.avatar || `https://ui-avatars.com/api/?name=${currentViewerUser}`;
-            document.getElementById('sv-time').innerText = new Date(story.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            document.getElementById('sv-time').innerText = formatTimeUTC(story.time);
 
-            // Conteúdo
             const container = document.getElementById('sv-content');
             container.innerHTML = '';
             
@@ -679,13 +711,13 @@
             } else {
                 container.style.backgroundColor = 'black';
                 if(story.type === 'video') {
-                    container.innerHTML = `<video src="${story.content}" autoplay class="max-w-full max-h-full"></video>`;
+                    // Adicionei classe story-media para object-fit: contain
+                    container.innerHTML = `<video src="${story.content}" autoplay class="story-media"></video>`;
                 } else {
-                    container.innerHTML = `<img src="${story.content}" class="max-w-full max-h-full object-contain">`;
+                    container.innerHTML = `<img src="${story.content}" class="story-media">`;
                 }
             }
 
-            // Caption
             const capBox = document.getElementById('sv-caption');
             if(story.caption) {
                 capBox.innerText = story.caption;
@@ -694,17 +726,14 @@
                 capBox.style.display = 'none';
             }
 
-            // Footer (Se for meu)
             if(currentViewerUser === me.username) {
                 document.getElementById('sv-footer').classList.remove('hidden');
                 document.getElementById('sv-view-count').innerText = (story.viewers.length) + ' views';
             } else {
                 document.getElementById('sv-footer').classList.add('hidden');
-                // Marcar como visto
                 socket.emit('view_status', { story_id: story.id, viewer: me.username, owner: currentViewerUser });
             }
 
-            // Barra de Progresso
             const barsContainer = document.getElementById('story-bars');
             barsContainer.innerHTML = '';
             userStories.forEach((_, idx) => {
@@ -717,6 +746,7 @@
                 else if(idx === currentStoryIndex) {
                     fill.style.width = '0%';
                     fill.style.transition = 'width 5s linear';
+                    // Delay pequeno para animação CSS pegar
                     setTimeout(() => fill.style.width = '100%', 10);
                 }
                 
@@ -724,8 +754,8 @@
                 barsContainer.appendChild(bar);
             });
 
-            // Timer
-            const duration = story.type === 'video' ? 10000 : 5000; // 5s img/txt, 10s video (simplificado)
+            // Se for vídeo, tenta pegar duração, senão 5s
+            const duration = story.type === 'video' ? 10000 : 5000; 
             storyTimer = setTimeout(nextStory, duration);
         }
 
@@ -742,11 +772,9 @@
         function closeStory() {
             clearTimeout(storyTimer);
             document.getElementById('story-viewer').classList.remove('active');
-            // Recarrega lista para atualizar anéis vistos
             loadStatus();
         }
 
-        // 4. Quem Viu
         async function showViewers() {
             const story = currentStories[me.username][currentStoryIndex];
             const viewers = await fetch('/story-viewers/'+story.id).then(r=>r.json());
@@ -776,7 +804,6 @@
             if(r.username){ document.getElementById('new-chat-modal').classList.add('hidden'); openChat(u); } else alert("Não achou");
         }
         
-        // --- PERFIL ---
         function updateMeUI() {
             const pic = me.avatar || `https://ui-avatars.com/api/?name=${me.username}&background=random`;
             document.getElementById('settings_avatar').src = pic;
@@ -827,27 +854,24 @@
             }
         });
 
-        // Evento de Presença e Status
         socket.on('user_status_change', data => {
-            // Se estiver no chat com essa pessoa, atualiza header
             if(active === data.username) {
                 const stDiv = document.getElementById('chat_status');
                 if(data.status === 'online') {
                     stDiv.innerText = 'Online';
                     stDiv.className = 'text-[12px] text-[#0A84FF] font-medium leading-tight';
                 } else {
-                    stDiv.innerText = 'Visto por último hoje às ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    // Usa a hora do evento se disponível, senão agora
+                    const time = data.last_seen ? formatTimeUTC(data.last_seen) : new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+                    stDiv.innerText = 'Visto por último hoje às ' + time;
                     stDiv.className = 'text-[11px] text-gray-400 leading-tight';
                 }
             }
-            // Atualiza bolinha verde na lista de chats
             loadChats();
         });
 
         socket.on('status_viewed', data => {
-            // Se eu estiver vendo a lista de quem viu meu status, atualiza
             if(active === null && !document.getElementById('viewers-modal').classList.contains('hidden')) {
-                // Apenas um reload simples para MVP
                 showViewers(); 
             }
         });
