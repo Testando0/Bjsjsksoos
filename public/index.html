@@ -315,571 +315,187 @@
         </div>
     </div>
 
-        <script>
+    <script>
         const socket = io();
-        let me = null, active = null, rec = null, chunks = [];
+        let me = null, active = null;
 
-        // --- ICONE DE VERIFICADO (Instagram Style) ---
+        // --- ÍCONE DE VERIFICADO ---
         function getVerifiedIcon(isVerified) {
             if (!isVerified) return '';
-            // Ícone de selo azul com check branco
             return `
             <svg class="w-4 h-4 ml-1 inline-block text-[#1D9BF0]" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.0001 2C12.4401 2 12.8701 2.13 13.2401 2.38L14.7301 3.33C15.0201 3.52 15.3501 3.63 15.7001 3.63C15.7901 3.63 15.8901 3.62 15.9801 3.61L17.7401 3.44C18.6801 3.35 19.5701 3.96 19.8201 4.88L20.2901 6.59C20.3801 6.93 20.5801 7.23 20.8501 7.44L22.2801 8.52C23.0301 9.09 23.2701 10.1 22.8401 10.94L22.0401 12.53C21.8901 12.83 21.8901 13.18 22.0401 13.48L22.8401 15.07C23.2701 15.91 23.0301 16.92 22.2801 17.49L20.8501 18.57C20.5801 18.78 20.3801 19.08 20.2901 19.42L19.8201 21.13C19.5701 22.05 18.6801 22.66 17.7401 22.57L15.9801 22.4C15.8901 22.39 15.7901 22.38 15.7001 22.38C15.3501 22.38 15.0101 22.49 14.7301 22.68L13.2401 23.63C12.4901 24.11 11.5101 24.11 10.7601 23.63L9.27006 22.68C8.98006 22.49 8.65006 22.38 8.30006 22.38C8.21006 22.38 8.11006 22.39 8.02006 22.4L6.26006 22.57C5.32006 22.66 4.43006 22.05 4.18006 21.13L3.71006 19.42C3.62006 19.08 3.42006 18.78 3.15006 18.57L1.72006 17.49C0.97006 16.92 0.73006 15.91 1.16006 15.07L1.96006 13.48C2.11006 13.18 2.11006 12.83 1.96006 12.53L1.16006 10.94C0.73006 10.1 0.97006 9.09 1.72006 8.52L3.15006 7.44C3.42006 7.23 3.62006 6.93 3.71006 6.59L4.18006 4.88C4.43006 3.96 5.32006 3.35 6.26006 3.44L8.02006 3.61C8.11006 3.62 8.21006 3.63 8.30006 3.63C8.65006 3.63 8.98006 3.52 9.27006 3.33L10.7601 2.38C11.1301 2.13 11.5601 2 12.0001 2ZM10.5901 16.17L17.6601 9.1L16.2401 7.68L10.5901 13.34L7.76006 10.51L6.34006 11.92L10.5901 16.17Z" />
             </svg>`;
         }
-        
-        // --- HELPERS DE TEMPO ---
-        function parseUTCTime(utcString) {
-            if(!utcString) return new Date();
-            const iso = utcString.replace(' ', 'T') + 'Z'; 
-            return new Date(iso);
-        }
-        function formatTimeUTC(utcString) {
-            if(!utcString) return '';
-            const d = parseUTCTime(utcString);
-            return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        }
-        function formatDayUTC(utcString) {
-            if(!utcString) return '';
-            const d = parseUTCTime(utcString);
-            const now = new Date();
-            const isToday = d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-            if(isToday) return 'Hoje';
-            const yesterday = new Date(now);
-            yesterday.setDate(yesterday.getDate() - 1);
-            const isYesterday = d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear();
-            if(isYesterday) return 'Ontem';
-            return d.toLocaleDateString();
-        }
 
-        // --- LÓGICA DE STATUS ---
-        let currentStories = {}; 
-        let currentViewerUser = null;
-        let currentStoryIndex = 0;
-        let storyTimer = null;
-        let statusDraft = { type: 'text', content: '', caption: '', bg_color: '#ff0055' };
-
-        // --- AUTH ---
+        // --- SISTEMA DE LOGIN ---
         window.onload = () => {
             const s = localStorage.getItem('whats_v4');
             if(s) { me = JSON.parse(s); enter(); }
         };
-        async function auth(ep) {
+
+        async function auth(endpoint) {
             const u = document.getElementById('u_auth').value.trim();
             const p = document.getElementById('p_auth').value.trim();
-            if(!u || !p) return alert("Preencha");
-            const r = await fetch('/'+ep, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
-            if(r.ok) { if(ep==='login'){ me=await r.json(); localStorage.setItem('whats_v4', JSON.stringify(me)); enter(); } else { alert("Criado!"); auth('login'); }}
-            else alert("Erro");
+            if(!u || !p) return alert("Preencha usuário e senha");
+            
+            try {
+                const res = await fetch('/' + endpoint, {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({username:u, password:p})
+                });
+                
+                const data = await res.json();
+                
+                if(res.ok) {
+                    if(endpoint === 'login'){
+                        me = data; 
+                        localStorage.setItem('whats_v4', JSON.stringify(me)); 
+                        enter();
+                    } else {
+                        alert("Usuário criado! Agora faça login.");
+                        // Não tenta logar direto, força o user a clicar em entrar
+                    }
+                } else {
+                    alert(data.error || "Erro na autenticação");
+                }
+            } catch(e) {
+                alert("Erro de conexão com o servidor");
+            }
         }
+
         function enter() {
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
             socket.emit('join', me.username);
-            updateMeUI(); loadChats();
+            updateMeUI(); 
+            loadChats();
         }
+
         function logout() { localStorage.removeItem('whats_v4'); location.reload(); }
 
-        // --- UI GERAL ---
-        function switchTab(t) {
-            ['chats','status','settings'].forEach(x => {
-                document.getElementById('tab-'+x).classList.add('hidden');
-                document.getElementById('btn-'+x).classList.remove('active-tab');
-                document.getElementById('btn-'+x).classList.add('text-[#8E8E93]');
-            });
-            document.getElementById('tab-'+t).classList.remove('hidden');
-            document.getElementById('btn-'+t).classList.add('active-tab');
-            document.getElementById('btn-'+t).classList.remove('text-[#8E8E93]');
-            document.getElementById('header-title').innerText = t==='chats'?'Conversas':(t==='status'?'Status':'Ajustes');
-            
-            if(t==='chats') loadChats();
-            if(t==='status') loadStatus();
+        // --- FUNÇÕES DE UI E CHAT ---
+        async function loadChats() {
+            const d = await fetch('/chats/'+me.username).then(r=>r.json());
+            document.getElementById('chat-list').innerHTML = d.map(c => `
+                <div onclick="openChat('${c.contact}')" class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E] cursor-pointer bg-[#161616] active:bg-[#2C2C2E]">
+                    <div class="relative">
+                        <img src="${c.avatar || 'https://ui-avatars.com/api/?name='+c.contact}" class="w-14 h-14 rounded-full bg-gray-700 object-cover">
+                        ${c.is_online ? '<div class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-[#161616]"></div>' : ''}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between">
+                            <h3 class="font-bold text-[17px] text-white truncate flex items-center">
+                                ${c.contact} ${getVerifiedIcon(c.is_verified)}
+                            </h3>
+                            <span class="text-sm text-gray-500">${c.last_time ? new Date(c.last_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}</span>
+                        </div>
+                        <p class="text-gray-400 truncate text-sm">${c.last_msg || ''}</p>
+                    </div>
+                </div>
+            `).join('');
         }
 
-        // --- CHAT LOGIC ---
         async function openChat(u) {
             active = u;
-            // Busca dados atualizados do usuário (incluindo verificado)
             const userData = await fetch('/user/'+u).then(r=>r.json());
             
-            // Renderiza nome + Verificado no Header
+            // Header do Chat com Verificado
             document.getElementById('chat_name').innerHTML = `${u} ${getVerifiedIcon(userData.is_verified)}`;
-            document.getElementById('chat_status').innerText = 'Carregando...'; 
+            document.getElementById('chat_avatar').src = userData.avatar || `https://ui-avatars.com/api/?name=${u}`;
             
-            document.getElementById('chat_avatar').src = userData.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
-            document.getElementById('info_avatar').src = userData.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
+            // Info do Perfil Lateral
             document.getElementById('info_name').innerHTML = `${u} ${getVerifiedIcon(userData.is_verified)}`;
+            document.getElementById('info_avatar').src = userData.avatar || `https://ui-avatars.com/api/?name=${u}`;
             document.getElementById('info_bio').innerText = userData.bio || "Sem recado";
 
-            updatePresenceUI(u);
-            
             document.getElementById('chat-room').classList.add('chat-open');
             const msgs = await fetch(`/messages/${me.username}/${active}`).then(r=>r.json());
-            document.getElementById('msg-container').innerHTML = '';
+            const div = document.getElementById('msg-container');
+            div.innerHTML = '';
             msgs.forEach(addMsg);
-            socket.emit('mark_read', {s:active, r:me.username});
-            scrollToBottom();
+            div.scrollTop = div.scrollHeight;
         }
 
-        function updatePresenceUI(username) {
-            fetch('/user/' + username).then(r=>r.json()).then(u => {
-                const stDiv = document.getElementById('chat_status');
-                if (u.is_online) {
-                    stDiv.innerText = 'Online';
-                    stDiv.className = 'text-[12px] text-[#0A84FF] font-medium leading-tight';
-                } else {
-                    stDiv.className = 'text-[11px] text-gray-400 leading-tight';
-                    if(u.last_seen) {
-                        const day = formatDayUTC(u.last_seen);
-                        const time = formatTimeUTC(u.last_seen);
-                        stDiv.innerText = `Visto por último ${day} às ${time}`;
-                    } else {
-                        stDiv.innerText = 'Offline';
-                    }
-                }
-            });
+        function addMsg(m) {
+            const isMe = m.s === me.username;
+            let content = m.type === 'image' 
+                ? `<img src="${m.c}" class="rounded-lg max-w-full border border-gray-600">` 
+                : `<span class="break-words">${m.c}</span>`;
+                
+            const div = document.createElement('div');
+            div.className = `flex flex-col mb-2 ${isMe ? 'items-end' : 'items-start'}`;
+            div.innerHTML = `
+                <div class="${isMe ? 'bg-[#005c4b]' : 'bg-[#202c33]'} p-2 rounded-lg max-w-[75%] text-white text-sm relative">
+                    ${content}
+                    <div class="text-[10px] text-gray-300 text-right mt-1">${new Date(m.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+                </div>`;
+            document.getElementById('msg-container').appendChild(div);
         }
-        
+
         function closeChat() {
             document.getElementById('chat-room').classList.remove('chat-open');
             active = null;
             loadChats();
         }
 
-        async function loadChats() {
-            const d = await fetch('/chats/'+me.username).then(r=>r.json());
-            document.getElementById('chat-list').innerHTML = d.map(c => `
-                <div onclick="openChat('${c.contact}')" class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E] cursor-pointer bg-[#161616] active:bg-[#2C2C2E] transition">
-                    <div class="relative">
-                        <img src="${c.avatar||'https://ui-avatars.com/api/?name='+c.contact+'&background=random'}" class="w-14 h-14 rounded-full bg-gray-700 object-cover shrink-0">
-                        ${c.is_online ? '<div class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-[#161616]"></div>' : ''}
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <div class="flex justify-between items-baseline">
-                            <h3 class="font-bold text-[17px] text-white truncate flex items-center">
-                                ${c.contact} ${getVerifiedIcon(c.is_verified)}
-                            </h3>
-                            <span class="text-[14px] ${c.unread>0?'text-[#0A84FF] font-bold':'text-gray-500'}">${formatTimeUTC(c.last_time)}</span>
-                        </div>
-                        <p class="text-[15px] text-gray-400 truncate h-5 flex items-center gap-1">
-                            ${c.last_sender === me.username ? getTickIcon(c.last_status) : ''}
-                            ${c.last_type==='image'?'📷 Foto':(c.last_type==='video'?'🎥 Vídeo':(c.last_msg||''))}
-                        </p>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function getTickIcon(status) {
-            if(status === 0) return '<span class="tick-icon tick-sent">✓</span>';
-            if(status === 1) return '<span class="tick-icon tick-sent">✓✓</span>';
-            return '<span class="tick-icon tick-read">✓✓</span>';
-        }
-
-        function addMsg(m) {
-            const isMe = m.s === me.username;
-            let body = '';
-            if(m.type==='text') body = `<span class="break-words">${m.c}</span>`;
-            else if(m.type==='image') body = `<img src="${m.c}" class="rounded-lg max-w-full border border-gray-600">`;
-            else if(m.type==='video') body = `<video src="${m.c}" controls class="rounded-lg max-w-full border border-gray-600"></video>`;
-            else if(m.type==='audio') body = `<audio src="${m.c}" controls class="h-10 w-48"></audio>`;
-
-            let ticks = '';
-            if(isMe) ticks = getTickIcon(m.status);
-            
-            let timeStr;
-            if (m.f_time && m.f_time === 'Agora') {
-                timeStr = 'Agora'; 
-            } else {
-                timeStr = m.time ? formatTimeUTC(m.time) : new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-            }
-
-            const div = document.createElement('div');
-            div.className = `msg-bubble flex flex-col ${isMe ? 'msg-me' : 'msg-them'}`;
-            div.innerHTML = `${body}<div class="text-[10px] text-gray-300 self-end mt-1 flex items-center gap-1 min-w-[50px] justify-end relative -mb-1">${timeStr} ${ticks}</div>`;
-            document.getElementById('msg-container').appendChild(div);
-        }
-
-        // --- ACTIONS ---
-        function handleKey(e) {
-            const v = e.target.value;
-            document.getElementById('send-btn').classList.toggle('hidden', !v);
-            document.getElementById('mic-btn').classList.toggle('hidden', !!v);
-            if(e.key==='Enter') sendText();
-        }
+        // --- ENVIAR MENSAGEM ---
+        function handleKey(e) { if(e.key === 'Enter') sendText(); }
+        
         function sendText() {
             const i = document.getElementById('chat-input');
             const txt = i.value.trim();
             if(!txt) return;
-            const data = { s:me.username, r:active, c:txt, type:'text', f_time: 'Agora' };
-            socket.emit('send_msg', data);
-            addMsg({...data, status:0}); 
-            scrollToBottom();
+            const d = { s:me.username, r:active, c:txt, type:'text' };
+            socket.emit('send_msg', d);
+            addMsg({...d, time: new Date()});
             i.value = '';
-            document.getElementById('send-btn').classList.add('hidden');
-            document.getElementById('mic-btn').classList.remove('hidden');
+            document.getElementById('msg-container').scrollTop = document.getElementById('msg-container').scrollHeight;
         }
-        function sendMedia(e) {
+
+        // --- UPDATE PROFILE ---
+        function updateMeUI() {
+            const pic = me.avatar || `https://ui-avatars.com/api/?name=${me.username}`;
+            document.getElementById('settings_avatar').src = pic;
+            document.getElementById('settings_name').innerHTML = `${me.username} ${getVerifiedIcon(me.is_verified)}`;
+            document.getElementById('settings_bio').value = me.bio;
+        }
+
+        async function updateProfilePic(e) {
             const f = e.target.files[0];
             if(!f) return;
             const r = new FileReader();
-            r.onload = () => {
-                const type = f.type.startsWith('video') ? 'video' : 'image';
-                const data = { s:me.username, r:active, c:r.result, type:type, f_time: 'Agora' };
-                socket.emit('send_msg', data);
-                addMsg({...data, status:0});
-                scrollToBottom();
-            };
-            r.readAsDataURL(f);
-        }
-        async function toggleMic() {
-            if(!rec) {
-                const s = await navigator.mediaDevices.getUserMedia({audio:true});
-                rec = new MediaRecorder(s); chunks=[];
-                rec.ondataavailable = e => chunks.push(e.data);
-                rec.onstop = () => {
-                    const r = new FileReader();
-                    r.readAsDataURL(new Blob(chunks));
-                    r.onloadend = () => {
-                        const data = { s:me.username, r:active, c:r.result, type:'audio', f_time: 'Agora' };
-                        socket.emit('send_msg', data);
-                        addMsg({...data, status:0}); scrollToBottom();
-                    }
-                };
-                rec.start();
-                document.getElementById('mic-btn').innerHTML = '🟥';
-            } else { rec.stop(); rec=null; document.getElementById('mic-btn').innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>'; }
-        }
-
-        // --- STATUS SYSTEM ---
-        
-        function openStatusCreator(mode) {
-            statusDraft = { type: 'text', content: '', caption: '', bg_color: '#ff0055' };
-            document.getElementById('st-text-input').value = '';
-            document.getElementById('st-caption').value = '';
-            document.getElementById('st-img-preview').src = '';
-            document.getElementById('st-video-preview').src = '';
-            document.getElementById('st-file-input').value = '';
-
-            document.getElementById('status-creator').classList.add('open');
-            
-            if(mode === 'text') {
-                document.getElementById('st-text-input').classList.remove('hidden');
-                document.getElementById('st-img-preview').classList.add('hidden');
-                document.getElementById('st-video-preview').classList.add('hidden');
-                document.getElementById('st-controls-text').classList.remove('hidden');
-                document.getElementById('st-preview-area').style.backgroundColor = statusDraft.bg_color;
-            } else {
-                document.getElementById('st-file-input').click();
-            }
-        }
-        
-        function handleStatusFile(e) {
-            const f = e.target.files[0];
-            if(!f) { closeStatusCreator(); return; }
-            
-            const r = new FileReader();
-            r.onload = () => {
-                statusDraft.content = r.result;
-                statusDraft.type = f.type.startsWith('video') ? 'video' : 'image';
-                
-                document.getElementById('st-text-input').classList.add('hidden');
-                document.getElementById('st-controls-text').classList.add('hidden');
-                document.getElementById('st-preview-area').style.backgroundColor = 'black';
-
-                if(statusDraft.type === 'image') {
-                    const img = document.getElementById('st-img-preview');
-                    img.src = r.result;
-                    img.classList.remove('hidden');
-                    document.getElementById('st-video-preview').classList.add('hidden');
-                } else {
-                    const vid = document.getElementById('st-video-preview');
-                    vid.src = r.result;
-                    vid.classList.remove('hidden');
-                    document.getElementById('st-img-preview').classList.add('hidden');
-                }
-            };
-            r.readAsDataURL(f);
-        }
-
-        function setBg(color) {
-            statusDraft.bg_color = color;
-            document.getElementById('st-preview-area').style.backgroundColor = color;
-        }
-
-        function closeStatusCreator() {
-            document.getElementById('status-creator').classList.remove('open');
-        }
-
-        async function submitStatus() {
-            if(statusDraft.type === 'text') {
-                statusDraft.content = document.getElementById('st-text-input').value;
-                if(!statusDraft.content) return;
-            }
-            statusDraft.caption = document.getElementById('st-caption').value;
-            statusDraft.username = me.username;
-
-            await fetch('/post-status', {
-                method: 'POST',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify(statusDraft)
-            });
-            
-            closeStatusCreator();
-            loadStatus();
-        }
-
-        async function loadStatus() {
-            const raw = await fetch('/get-status').then(r=>r.json());
-            currentStories = {};
-            
-            raw.forEach(s => {
-                if(!currentStories[s.username]) currentStories[s.username] = [];
-                currentStories[s.username].push(s);
-            });
-
-            const list = document.getElementById('status-list');
-            list.innerHTML = ''; 
-            
-            Object.keys(currentStories).forEach(u => {
-                if(u === me.username) return; 
-                
-                const stories = currentStories[u];
-                const lastStory = stories[stories.length - 1];
-                const allViewed = stories.every(s => s.viewers.includes(me.username));
-                const ringClass = allViewed ? 'status-ring-viewed' : '';
-                
-                // Inserir verificado se necessário
-                const html = `
-                <div onclick="openStoryViewer('${u}')" class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E] cursor-pointer active:bg-[#2C2C2E]">
-                    <div class="p-[2px] rounded-full status-ring ${ringClass} border-2 border-[#0A84FF]">
-                        <img src="${lastStory.avatar || 'https://ui-avatars.com/api/?name='+u}" class="w-14 h-14 rounded-full object-cover">
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-white flex items-center">${u} ${getVerifiedIcon(lastStory.is_verified)}</h3>
-                        <p class="text-xs text-gray-500">${formatTimeUTC(lastStory.time)}</p>
-                    </div>
-                </div>`;
-                list.insertAdjacentHTML('beforeend', html);
-            });
-
-            const mySt = currentStories[me.username];
-            const myRing = document.getElementById('my_status_pic').parentElement;
-            if(mySt && mySt.length > 0) {
-                myRing.className = 'p-[2px] rounded-full border-2 border-[#0A84FF] relative inline-block';
-            } else {
-                myRing.className = 'relative';
-            }
-        }
-        
-        function checkMyStatus() {
-            if(currentStories[me.username]) openStoryViewer(me.username);
-            else alert("Você não postou nada nas últimas 24h.");
-        }
-
-        function openStoryViewer(username) {
-            currentViewerUser = username;
-            currentStoryIndex = 0;
-            
-            if(username !== me.username) {
-                const idx = currentStories[username].findIndex(s => !s.viewers.includes(me.username));
-                if(idx !== -1) currentStoryIndex = idx;
-            }
-            
-            renderStory();
-            document.getElementById('story-viewer').classList.add('active');
-        }
-
-        function clearCurrentStoryMedia() {
-            const container = document.getElementById('sv-content');
-            const videos = container.querySelectorAll('video');
-            videos.forEach(v => {
-                v.pause();
-                v.src = "";
-                v.load();
-            });
-            container.innerHTML = '';
-        }
-
-        function renderStory() {
-            clearTimeout(storyTimer);
-            clearCurrentStoryMedia();
-
-            const userStories = currentStories[currentViewerUser];
-            if(!userStories || currentStoryIndex >= userStories.length) {
-                closeStory();
-                return;
-            }
-
-            const story = userStories[currentStoryIndex];
-            
-            // Renderiza nome + Verificado no Viewer
-            document.getElementById('sv-username').innerHTML = `${currentViewerUser} ${getVerifiedIcon(story.is_verified)}`;
-            document.getElementById('sv-avatar').src = story.avatar || `https://ui-avatars.com/api/?name=${currentViewerUser}`;
-            document.getElementById('sv-time').innerText = formatTimeUTC(story.time);
-
-            const container = document.getElementById('sv-content');
-            
-            if(story.type === 'text') {
-                container.style.backgroundColor = story.bg_color;
-                container.innerHTML = `<h1 class="text-white text-3xl font-bold text-center px-6">${story.content}</h1>`;
-            } else {
-                container.style.backgroundColor = 'black';
-                if(story.type === 'video') {
-                    const vid = document.createElement('video');
-                    vid.src = story.content;
-                    vid.autoplay = true;
-                    vid.className = 'story-media';
-                    vid.onended = nextStory; 
-                    vid.onloadedmetadata = () => {
-                        updateProgressBars(currentStoryIndex, userStories.length, vid.duration * 1000);
-                    };
-                    container.appendChild(vid);
-                } else {
-                    container.innerHTML = `<img src="${story.content}" class="story-media">`;
-                    updateProgressBars(currentStoryIndex, userStories.length, 5000);
-                    storyTimer = setTimeout(nextStory, 5000);
-                }
-            }
-            
-            if(story.type === 'text') {
-                updateProgressBars(currentStoryIndex, userStories.length, 5000);
-                storyTimer = setTimeout(nextStory, 5000);
-            }
-
-            const capBox = document.getElementById('sv-caption');
-            if(story.caption) {
-                capBox.innerText = story.caption;
-                capBox.style.display = 'inline-block';
-            } else {
-                capBox.style.display = 'none';
-            }
-
-            if(currentViewerUser === me.username) {
-                document.getElementById('sv-footer').classList.remove('hidden');
-                document.getElementById('sv-view-count').innerText = (story.viewers.length) + ' views';
-            } else {
-                document.getElementById('sv-footer').classList.add('hidden');
-                socket.emit('view_status', { story_id: story.id, viewer: me.username, owner: currentViewerUser });
-            }
-        }
-
-        function updateProgressBars(currentIdx, total, durationMs) {
-            const barsContainer = document.getElementById('story-bars');
-            barsContainer.innerHTML = '';
-            for(let i=0; i<total; i++) {
-                const bar = document.createElement('div');
-                bar.className = 'story-progress-bar';
-                const fill = document.createElement('div');
-                fill.className = 'story-progress-fill';
-                
-                if(i < currentIdx) {
-                    fill.style.width = '100%';
-                } else if(i === currentIdx) {
-                    fill.style.width = '0%';
-                    fill.style.transition = `width ${durationMs}ms linear`;
-                    setTimeout(() => fill.style.width = '100%', 10);
-                }
-                
-                bar.appendChild(fill);
-                barsContainer.appendChild(bar);
-            }
-        }
-
-        function nextStory() {
-            currentStoryIndex++;
-            renderStory();
-        }
-        function prevStory() {
-            if(currentStoryIndex > 0) {
-                currentStoryIndex--;
-                renderStory();
-            }
-        }
-        function closeStory() {
-            clearTimeout(storyTimer);
-            clearCurrentStoryMedia();
-            document.getElementById('story-viewer').classList.remove('active');
-            loadStatus();
-        }
-
-        async function showViewers() {
-            const story = currentStories[me.username][currentStoryIndex];
-            const viewers = await fetch('/story-viewers/'+story.id).then(r=>r.json());
-            
-            const list = document.getElementById('viewers-list');
-            list.innerHTML = '';
-            
-            if(viewers.length === 0) {
-                list.innerHTML = '<p class="text-gray-500 text-center">Ninguém viu ainda.</p>';
-            } else {
-                viewers.forEach(v => {
-                    list.innerHTML += `
-                    <div class="flex items-center gap-3">
-                        <img src="https://ui-avatars.com/api/?name=${v}&background=random" class="w-10 h-10 rounded-full">
-                        <span class="text-white font-bold">${v}</span>
-                    </div>`;
-                });
-            }
-            document.getElementById('viewers-modal').classList.remove('hidden');
-        }
-
-        // --- UTILS ---
-        function scrollToBottom(){const c=document.getElementById('msg-container');c.scrollTop=c.scrollHeight;}
-        async function startChat(){
-            const u=document.getElementById('new-chat-input').value.trim();
-            const r=await fetch('/user/'+u).then(x=>x.json());
-            if(r.username){ document.getElementById('new-chat-modal').classList.add('hidden'); openChat(u); } else alert("Não achou");
-        }
-        
-        function updateMeUI() {
-            // Se me.avatar estiver vazio, usa ui-avatars. Se for caminho relativo, o browser acha.
-            const pic = me.avatar || `https://ui-avatars.com/api/?name=${me.username}&background=random`;
-            document.getElementById('settings_avatar').src = pic;
-            document.getElementById('my_status_pic').src = pic;
-            
-            // Adiciona verificado no perfil
-            document.getElementById('settings_name').innerHTML = `${me.username} ${getVerifiedIcon(me.is_verified)}`;
-            document.getElementById('settings_bio').value = me.bio || '';
-        }
-        
-        async function updateProfilePic(e) {
-            const f = e.target.files[0]; if(!f) return;
-            // Validação de tamanho simples (opcional)
-            if (f.size > 5 * 1024 * 1024) { alert("Imagem muito grande! Max 5MB"); return; }
-            
-            const r = new FileReader();
             r.onload = async () => {
-                me.avatar = r.result; // Manda base64 pro server
-                // Server vai salvar arquivo e retornar o caminho relativo
-                const resp = await fetch('/update-profile', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(me)});
-                const data = await resp.json();
-                
-                if(data.ok) {
-                    me.avatar = data.avatar; // Atualiza com o caminho do arquivo (/avatars/...)
-                    updateMeUI(); 
+                me.avatar = r.result; // Envia base64, server salva e devolve caminho
+                const res = await fetch('/update-profile', {
+                    method:'POST', headers:{'Content-Type':'application/json'}, 
+                    body:JSON.stringify(me)
+                });
+                const d = await res.json();
+                if(d.ok) { 
+                    me.avatar = d.avatar; 
                     localStorage.setItem('whats_v4', JSON.stringify(me));
+                    updateMeUI(); 
                 }
-            }; r.readAsDataURL(f);
-        }
-        
-        async function saveBio(v) {
-            me.bio = v;
-            await fetch('/update-profile', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(me)});
-            localStorage.setItem('whats_v4', JSON.stringify(me));
+            };
+            r.readAsDataURL(f);
         }
 
-        // --- SOCKET EVENTOS ---
-        socket.on('new_msg', m => { 
-            if(active===m.s){
-                addMsg(m);
-                socket.emit('mark_read',{s:active,r:me.username});
-                scrollToBottom();
-            } else {
-                loadChats();
-            }
-        });
+        // --- ABAS ---
+        function switchTab(t) {
+            ['chats','settings'].forEach(x => {
+                document.getElementById('tab-'+x).classList.add('hidden');
+                document.getElementById('btn-'+x).classList.remove('active-tab');
+            });
+            document.getElementById('tab-'+t).classList.remove('hidden');
+            document.getElementById('btn-'+t).classList.add('active-tab');
+            if(t==='chats') loadChats();
+        }
+
+        // --- SOCKET LISTENERS ---
+        socket.on('new_msg', m => { if(active===m.s) { addMsg(m); } else { loadChats(); } });
+    </script>
 
         socket.on('msg_sent_ok', m => {
             if(active === m.r) {
