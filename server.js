@@ -4,81 +4,110 @@ const { Server } = require("socket.io");
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
 
-// Aumentando buffer do Socket.IO para evitar corte de vídeos (100MB)
+// --- CONFIGURAÇÃO DE ARQUIVOS E PASTAS ---
+const DATA_DIR = path.join(__dirname, 'data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const AVATAR_DIR = path.join(PUBLIC_DIR, 'avatars');
+
+// Garante que as pastas e arquivos existam
+if (!fs.existsSync(PUBLIC_DIR)) fs.mkdirSync(PUBLIC_DIR);
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+if (!fs.existsSync(AVATAR_DIR)) fs.mkdirSync(AVATAR_DIR, { recursive: true });
+
+// Cria o users.json se não existir
+if (!fs.existsSync(USERS_FILE)) fs.writeFileSync(USERS_FILE, '[]');
+
+// --- FUNÇÕES AUXILIARES ---
+
+// Ler usuários do JSON
+const getUsers = () => {
+    try {
+        return JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    } catch (error) {
+        return [];
+    }
+};
+
+// Salvar usuários no JSON
+const saveUsers = (users) => fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+
+// Salvar imagem Base64 como arquivo
+const saveAvatarImage = (username, base64Data) => {
+    if (!base64Data || !base64Data.startsWith('data:image')) return '';
+    
+    try {
+        // Remove o prefixo do base64 (ex: "data:image/png;base64,")
+        const matches = base64Data.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
+        if (!matches || matches.length !== 3) return '';
+
+        const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+        const buffer = Buffer.from(matches[2], 'base64');
+        const filename = `${username}_${Date.now()}.${ext}`;
+        const filepath = path.join(AVATAR_DIR, filename);
+
+        fs.writeFileSync(filepath, buffer);
+        return `/avatars/${filename}`; // Retorna o caminho relativo para acesso web
+    } catch (e) {
+        console.error("Erro ao salvar imagem:", e);
+        return '';
+    }
+};
+
+// --- CONFIGURAÇÃO DO SERVIDOR ---
 const io = new Server(server, { 
     cors: { origin: "*" }, 
-    maxHttpBufferSize: 1e8,
-    pingTimeout: 60000 // Aumenta timeout para conexões lentas durante envio de video
+    maxHttpBufferSize: 1e8 // Permite upload grande via socket se necessário
 }); 
 
-// Limite do Express para JSON (Upload via API)
-app.use(express.json({ limit: '100mb' }));
-app.use(express.urlencoded({ limit: '100mb', extended: true }));
-app.use(express.static('public'));
+app.use(express.json({ limit: '50mb' })); // Aumentado para receber Base64
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.static('public')); // Serve a pasta public (onde estão os avatares)
 
-const db = new sqlite3.Database('./red_v3.db');
+// Mantém SQLite APENAS para mensagens e stories (histórico de chat)
+const db = new sqlite3.Database('./chat_database.db');
 
-// --- INICIALIZAÇÃO DO BANCO ---
 db.serialize(() => {
-    // Tabelas Base - Corrigido para salvar horário UTC (sem localtime)
-    db.run("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT, avatar TEXT, bio TEXT)");
-    
-    // Time padrão agora é UTC
     db.run("CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, s TEXT, r TEXT, c TEXT, type TEXT, status INTEGER DEFAULT 0, time DATETIME DEFAULT (datetime('now')))");
-    
-    // Stories também em UTC
-    db.run("CREATE TABLE IF NOT EXISTS stories (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, content TEXT, time DATETIME DEFAULT (datetime('now')))");
-
-    // Função auxiliar para atualização segura de colunas
-    const addCol = (tbl, col, def) => {
-        db.run(`ALTER TABLE ${tbl} ADD COLUMN ${col} ${def}`, (err) => { /* Ignora erro se coluna já existe */ });
-    };
-
-    // Colunas extras
-    addCol('users', 'last_seen', 'DATETIME');
-    addCol('users', 'is_online', 'INTEGER DEFAULT 0');
-    
-    addCol('stories', 'type', 'TEXT DEFAULT "image"');
-    addCol('stories', 'caption', 'TEXT');
-    addCol('stories', 'bg_color', 'TEXT');
-    addCol('stories', 'viewers', 'TEXT DEFAULT "[]"');
+    db.run("CREATE TABLE IF NOT EXISTS stories (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT, content TEXT, type TEXT DEFAULT 'image', caption TEXT, bg_color TEXT, viewers TEXT DEFAULT '[]', time DATETIME DEFAULT (datetime('now')))");
 });
 
-const onlineUsers = {}; // Cache: { username: socketId }
+const onlineUsers = {}; 
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-// --- SOCKET ---
+// --- SOCKET.IO (MENSAGENS EM TEMPO REAL) ---
 io.on('connection', (socket) => {
-    
     socket.on('join', (username) => { 
         socket.username = username; 
         onlineUsers[username] = socket.id;
         
-        // Atualiza status para Online
-        db.run("UPDATE users SET is_online = 1 WHERE username = ?", [username]);
-        
-        // Emite status sem formatar data (envia objeto raw se necessário)
-        io.emit('user_status_change', { username: username, status: 'online' });
+        let users = getUsers();
+        let user = users.find(u => u.username === username);
+        if (user) {
+            user.is_online = true;
+            saveUsers(users);
+        }
+        io.emit('user_status_change', { username, status: 'online' });
     });
 
     socket.on('send_msg', (data) => {
         const recipientSocketId = onlineUsers[data.r];
         const status = recipientSocketId ? 1 : 0; 
-
-        // Insere usando horário UTC do banco
+        
+        // Salva msg no SQLite
         db.run("INSERT INTO messages (s, r, c, type, status, time) VALUES (?, ?, ?, ?, ?, datetime('now'))", 
             [data.s, data.r, data.c, data.type, status], 
             function(err) {
                 if(!err) {
                     const msgId = this.lastID;
-                    // Retorna a mensagem completa com o time cru (raw) para o front formatar
                     db.get("SELECT * FROM messages WHERE id = ?", [msgId], (e, row) => {
                         if(recipientSocketId) io.to(recipientSocketId).emit('new_msg', row);
                         socket.emit('msg_sent_ok', row);
@@ -95,10 +124,9 @@ io.on('connection', (socket) => {
             }
         });
     });
-    
+
     socket.on('view_status', (data) => {
         if(data.viewer === data.owner) return;
-
         db.get("SELECT viewers FROM stories WHERE id = ?", [data.story_id], (err, row) => {
             if(row) {
                 let list = JSON.parse(row.viewers || "[]");
@@ -116,76 +144,167 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => { 
         if(socket.username) {
             delete onlineUsers[socket.username];
-            // Salva last_seen em UTC
-            db.run("UPDATE users SET is_online = 0, last_seen = datetime('now') WHERE username = ?", [socket.username]);
-            // Envia evento
+            let users = getUsers();
+            let user = users.find(u => u.username === socket.username);
+            if (user) {
+                user.is_online = false;
+                user.last_seen = new Date().toISOString();
+                saveUsers(users);
+            }
             io.emit('user_status_change', { username: socket.username, status: 'offline', last_seen: new Date().toISOString() });
         }
     });
 });
 
-// --- API ---
+// --- API DE USUÁRIOS (JSON) ---
+
 app.post('/register', async (req, res) => {
     try {
         const { username, password } = req.body;
-        if(!username || !password) return res.status(400).json({error: "Erro"});
+        if(!username || !password) return res.status(400).json({error: "Dados inválidos"});
+        
+        let users = getUsers();
+        if(users.find(u => u.username === username)) {
+            return res.status(400).json({error: "Usuário já existe"});
+        }
+
         const hash = await bcrypt.hash(password, 10);
-        db.run("INSERT INTO users (username, password, bio, avatar) VALUES (?, ?, 'Olá! Estou usando o Chat.', '')", [username, hash], (err) => {
-            if(err) return res.status(400).json({error: "Existe"});
-            res.json({ok: true});
-        });
-    } catch(e) { res.status(500).send(); }
+        const newUser = {
+            username,
+            password: hash,
+            bio: 'Olá! Estou usando o Chat.',
+            avatar: '', // Inicialmente sem foto
+            is_verified: false, // Padrão: FALSE. Mude no JSON manualmente para TRUE.
+            is_online: false,
+            last_seen: null
+        };
+
+        users.push(newUser);
+        saveUsers(users);
+        res.json({ok: true});
+    } catch(e) { res.status(500).send(e.message); }
 });
 
-app.post('/login', (req, res) => {
-    db.get("SELECT * FROM users WHERE username = ?", [req.body.username], async (err, user) => {
-        if(user && await bcrypt.compare(req.body.password, user.password)) { 
-            delete user.password; 
-            res.json(user); 
+app.post('/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        let users = getUsers();
+        const user = users.find(u => u.username === username);
+
+        if(user && await bcrypt.compare(password, user.password)) { 
+            const { password, ...userSafe } = user;
+            res.json(userSafe); 
+        } else {
+            res.status(401).json({error: "Credenciais inválidas"});
+        }
+    } catch (e) { res.status(500).send(); }
+});
+
+app.get('/user/:u', (req, res) => {
+    const users = getUsers();
+    const user = users.find(u => u.username === req.params.u);
+    if(user) {
+        const { password, ...userSafe } = user;
+        res.json(userSafe);
+    } else {
+        // Retorna fake se não achar, para não quebrar UI
+        res.json({ username: req.params.u, avatar: '', is_verified: false });
+    }
+});
+
+// Atualizar Perfil e Salvar Imagem
+app.post('/update-profile', (req, res) => {
+    const { username, bio, avatar } = req.body;
+    let users = getUsers();
+    let userIndex = users.findIndex(u => u.username === username);
+
+    if(userIndex !== -1) {
+        users[userIndex].bio = bio;
+        
+        // Se veio uma string Base64 nova, salva como arquivo
+        if(avatar && avatar.startsWith('data:image')) {
+            const savedPath = saveAvatarImage(username, avatar);
+            if(savedPath) {
+                // Se tinha avatar antigo, poderia deletar aqui usando fs.unlinkSync
+                users[userIndex].avatar = savedPath;
+            }
         } 
-        else res.status(401).json({error: "Erro"});
+        // Se avatar for string vazia, remove
+        else if (avatar === "") {
+            users[userIndex].avatar = "";
+        }
+        
+        saveUsers(users);
+        res.json({ok: true, avatar: users[userIndex].avatar});
+    } else {
+        res.status(404).json({error: "User not found"});
+    }
+});
+
+// --- API CHATS ---
+
+app.get('/chats/:me', (req, res) => {
+    // Busca últimas mensagens no SQLite
+    const q = `
+        SELECT m.id, m.s, m.r, m.c, m.type, m.status, m.time 
+        FROM messages m 
+        WHERE (m.s = ? OR m.r = ?)
+        ORDER BY m.id DESC`;
+
+    db.all(q, [req.params.me, req.params.me], (e, rows) => {
+        if(e) return res.json([]);
+        
+        const chatsMap = {};
+        rows.forEach(row => {
+            const contact = row.s === req.params.me ? row.r : row.s;
+            if(!chatsMap[contact]) {
+                chatsMap[contact] = {
+                    contact: contact,
+                    last_msg: row.c,
+                    last_type: row.type,
+                    last_status: row.status,
+                    last_sender: row.s,
+                    last_time: row.time,
+                    unread: 0
+                };
+            }
+            if(row.r === req.params.me && row.s === contact && row.status < 2) {
+                chatsMap[contact].unread++;
+            }
+        });
+
+        // Cruza com dados do users.json para pegar foto e verificado
+        const users = getUsers();
+        const result = Object.values(chatsMap).map(chat => {
+            const uData = users.find(u => u.username === chat.contact);
+            return {
+                ...chat,
+                avatar: uData ? uData.avatar : '',
+                is_online: uData ? uData.is_online : false,
+                is_verified: uData ? uData.is_verified : false // Envia status de verificado
+            };
+        });
+
+        res.json(result);
     });
 });
 
-app.get('/chats/:me', (req, res) => {
-    // Retorna last_time cru (sem strftime) para o front calcular fuso
-    const q = `
-        SELECT u.username as contact, u.avatar, u.is_online, 
-        m.c as last_msg, m.type as last_type, m.status as last_status, m.s as last_sender, 
-        m.time as last_time, 
-        (SELECT COUNT(*) FROM messages WHERE s = u.username AND r = ? AND status < 2) as unread 
-        FROM users u 
-        JOIN messages m ON m.id = (SELECT id FROM messages WHERE (s = u.username AND r = ?) OR (s = ? AND r = u.username) ORDER BY id DESC LIMIT 1) 
-        WHERE u.username != ? 
-        ORDER BY m.time DESC`;
-        
-    db.all(q, [req.params.me, req.params.me, req.params.me, req.params.me], (e, r) => res.json(r || []));
-});
-
 app.get('/messages/:u1/:u2', (req, res) => {
-    // Retorna time cru, sem formatar
     db.all("SELECT * FROM messages WHERE (s=? AND r=?) OR (s=? AND r=?) ORDER BY id ASC", 
         [req.params.u1, req.params.u2, req.params.u2, req.params.u1], 
         (e, r) => res.json(r || [])
     );
 });
 
-app.get('/user/:u', (req, res) => {
-    db.get("SELECT username, avatar, bio, is_online, last_seen FROM users WHERE username = ?", [req.params.u], (e, r) => res.json(r || {}));
-});
+// --- API STATUS / STORIES ---
 
-app.post('/update-profile', (req, res) => {
-    db.run("UPDATE users SET bio = ?, avatar = ? WHERE username = ?", 
-        [req.body.bio, req.body.avatar, req.body.username], 
-        () => res.json({ok:true})
-    );
-});
-
-// --- POSTAR STATUS ---
 app.post('/post-status', (req, res) => {
     const { username, content, type, caption, bg_color } = req.body;
     
-    // Insere com UTC datetime('now')
+    // NOTA: Para stories, também seria ideal salvar a imagem em disco,
+    // mas para simplificar, mantivemos no SQLite ou você pode adaptar a função saveAvatarImage para stories.
+    // Aqui assumimos que 'content' é base64 ou texto.
+    
     db.run("INSERT INTO stories (username, content, type, caption, bg_color, time) VALUES (?, ?, ?, ?, ?, datetime('now'))", 
         [username, content, type || 'image', caption || '', bg_color || ''], 
         function(err) {
@@ -195,24 +314,21 @@ app.post('/post-status', (req, res) => {
     );
 });
 
-// --- OBTER STATUS ---
 app.get('/get-status', (req, res) => {
-    // Busca stories das últimas 24h (comparando UTC com UTC)
-    const query = `
-        SELECT s.*, u.avatar 
-        FROM stories s 
-        JOIN users u ON s.username = u.username 
-        WHERE s.time > datetime('now', '-24 hours') 
-        ORDER BY s.time ASC
-    `;
-    db.all(query, (e, rows) => {
+    db.all("SELECT * FROM stories WHERE time > datetime('now', '-24 hours') ORDER BY time ASC", (e, rows) => {
         if(e) return res.json([]);
         
-        const cleanRows = rows.map(r => ({
-            ...r,
-            viewers: JSON.parse(r.viewers || "[]")
-        }));
-        res.json(cleanRows);
+        const users = getUsers();
+        const result = rows.map(r => {
+            const u = users.find(user => user.username === r.username);
+            return {
+                ...r,
+                viewers: JSON.parse(r.viewers || "[]"),
+                avatar: u ? u.avatar : '',
+                is_verified: u ? u.is_verified : false
+            };
+        });
+        res.json(result);
     });
 });
 
@@ -223,4 +339,4 @@ app.get('/story-viewers/:id', (req, res) => {
     });
 });
 
-server.listen(3001, () => console.log('Servidor iOS Clone ON port 3001'));
+server.listen(3001, () => console.log('Servidor rodando em http://localhost:3001'));
