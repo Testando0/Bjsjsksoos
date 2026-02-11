@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        /* --- CONFIGURAÇÕES DARK MODE & RED THEME --- */
+        /* --- CONFIGURAÇÕES DARK MODE & THEME --- */
         :root {
             --bg-app: #000000;
             --bg-secondary: #1C1C1E;
@@ -16,7 +16,7 @@
             --text-secondary: #8E8E93;
             --separator: #2C2C2E;
             --accent-color: #0A84FF;
-            --bubble-me: #3E1010; /* Vermelho Escuro Sutil */
+            --bubble-me: #3E1010;
             --bubble-them: #2C2C2E;
             --chat-bg-color: #0b141a;
         }
@@ -71,7 +71,7 @@
         
         .story-progress-container {
             display: flex; gap: 4px; padding: 10px 4px; 
-            position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+            position: absolute; top: 0; left: 0; right: 0; z-index: 50;
         }
         .story-progress-bar {
             height: 2px; flex: 1; background: rgba(255,255,255,0.3); border-radius: 2px; overflow: hidden;
@@ -80,9 +80,21 @@
             height: 100%; background: white; width: 0%;
         }
         
-        /* Garantir que a mídia do story não corte */
         .story-media {
             width: 100%; height: 100%; object-fit: contain; display: block;
+        }
+
+        /* STATUS CREATOR (FIXED KEYBOARD ISSUE) */
+        #status-creator {
+            position: fixed; inset: 0; z-index: 150; background: #000;
+            display: flex; flex-direction: column; height: 100%;
+            transform: translateY(100%); transition: transform 0.3s;
+        }
+        #status-creator.open { transform: translateY(0); }
+        
+        /* Ajuste para garantir que a área de input não suma */
+        .creator-footer {
+            flex-shrink: 0; background: #1C1C1E; width: 100%; padding-bottom: env(safe-area-inset-bottom);
         }
 
         /* STATUS RING */
@@ -95,20 +107,10 @@
         .active-tab span { color: #FF3B30; }
         .input-dark { background-color: #2C2C2E; color: white; border: none; }
         .input-dark::placeholder { color: #8E8E93; }
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
         
         .tick-icon { font-size: 11px; margin-left: 3px; font-weight: bold; letter-spacing: -1px; }
         .tick-read { color: #34B7F1; }
         .tick-sent { color: #8E8E93; }
-
-        /* MODAL DE CRIAÇÃO DE STATUS */
-        #status-creator {
-            position: fixed; inset: 0; z-index: 150; background: #000;
-            display: flex; flex-direction: column;
-            transform: translateY(100%); transition: transform 0.3s;
-        }
-        #status-creator.open { transform: translateY(0); }
     </style>
 </head>
 <body>
@@ -220,11 +222,9 @@
                 <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 4v16m8-8H4"/></svg>
             </button>
             <input type="file" id="media_input" hidden accept="image/*,video/*" onchange="sendMedia(event)">
-
             <div class="flex-1 bg-[#2C2C2E] border border-[#3A3A3C] rounded-2xl min-h-[36px] flex items-center px-3 py-1 mb-1">
                 <input id="chat-input" class="w-full bg-transparent outline-none text-[16px] text-white max-h-24" placeholder="" onkeydown="handleKey(event)">
             </div>
-            
             <button onclick="sendText()" id="send-btn" class="text-[#FF3B30] font-bold p-2 mb-1 hidden">Enviar</button>
             <button onclick="toggleMic()" id="mic-btn" class="text-[#FF3B30] p-2 mb-1"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg></button>
         </div>
@@ -233,7 +233,7 @@
     <div id="story-viewer">
         <div class="story-progress-container" id="story-bars"></div>
         
-        <div class="flex items-center gap-3 p-4 z-20 mt-4">
+        <div class="flex items-center gap-3 p-4 z-20 mt-4 absolute top-0 left-0 right-0 pt-safe">
             <button onclick="closeStory()" class="text-white"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg></button>
             <img id="sv-avatar" class="w-10 h-10 rounded-full border border-white/20 bg-gray-700">
             <div>
@@ -242,11 +242,10 @@
             </div>
         </div>
 
-        <div id="sv-content" class="absolute inset-0 flex items-center justify-center bg-black">
-            </div>
+        <div id="sv-content" class="absolute inset-0 flex items-center justify-center bg-black"></div>
         
-        <div id="sv-caption-container" class="absolute bottom-16 left-0 right-0 p-4 text-center z-20">
-             <p id="sv-caption" class="text-white bg-black/50 p-2 rounded-lg inline-block text-lg"></p>
+        <div id="sv-caption-container" class="absolute bottom-16 left-0 right-0 p-4 text-center z-20 pointer-events-none">
+             <p id="sv-caption" class="text-white bg-black/50 p-2 rounded-lg inline-block text-lg pointer-events-auto"></p>
         </div>
 
         <div class="absolute inset-0 flex z-10">
@@ -255,7 +254,7 @@
         </div>
 
         <div id="sv-footer" class="absolute bottom-0 w-full p-4 pb-safe bg-black/40 backdrop-blur z-30 hidden flex justify-center">
-            <button onclick="showViewers()" class="flex flex-col items-center text-white">
+            <button onclick="showViewers()" class="flex flex-col items-center text-white pointer-events-auto">
                 <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                 <span class="text-xs" id="sv-view-count">0 views</span>
             </button>
@@ -270,18 +269,18 @@
     </div>
 
     <div id="status-creator">
-        <div class="flex justify-between items-center p-4 pt-safe">
+        <div class="flex justify-between items-center p-4 pt-safe shrink-0">
             <button onclick="closeStatusCreator()" class="text-white text-lg">Cancelar</button>
             <button onclick="submitStatus()" class="text-[#0A84FF] font-bold text-lg">Enviar</button>
         </div>
         
-        <div class="flex-1 relative flex flex-col justify-center items-center" id="st-preview-area">
+        <div class="flex-1 relative flex flex-col justify-center items-center overflow-hidden min-h-0" id="st-preview-area">
             <textarea id="st-text-input" class="hidden w-full h-full bg-transparent text-white text-4xl text-center p-8 outline-none resize-none flex items-center justify-center font-bold" placeholder="Digite seu status..."></textarea>
             <img id="st-img-preview" class="hidden max-h-full max-w-full object-contain">
-            <video id="st-video-preview" class="hidden max-h-full max-w-full" controls></video>
+            <video id="st-video-preview" class="hidden max-h-full max-w-full object-contain" controls></video>
         </div>
 
-        <div class="p-4 pb-safe bg-[#1C1C1E] w-full">
+        <div class="creator-footer p-4 bg-[#1C1C1E] w-full shrink-0">
             <input id="st-caption" class="w-full bg-[#2C2C2E] text-white p-3 rounded-xl mb-4" placeholder="Adicione uma legenda...">
             
             <div id="st-controls-text" class="hidden flex justify-center gap-4 mb-4">
@@ -321,39 +320,31 @@
         let me = null, active = null, rec = null, chunks = [];
         
         // --- HELPERS DE TEMPO ---
-        // Converte string SQLite UTC (ex: 2023-01-01 15:00:00) para Objeto Date Local
         function parseUTCTime(utcString) {
             if(!utcString) return new Date();
-            // Adiciona 'Z' para forçar interpretação como UTC no construtor Date
             const iso = utcString.replace(' ', 'T') + 'Z'; 
             return new Date(iso);
         }
-
-        // Retorna hora HH:MM local
         function formatTimeUTC(utcString) {
             if(!utcString) return '';
             const d = parseUTCTime(utcString);
             return d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         }
-        
-        // Retorna data amigável (Ontem, Hoje, ou data)
         function formatDayUTC(utcString) {
             if(!utcString) return '';
             const d = parseUTCTime(utcString);
             const now = new Date();
             const isToday = d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
             if(isToday) return 'Hoje';
-            
             const yesterday = new Date(now);
             yesterday.setDate(yesterday.getDate() - 1);
             const isYesterday = d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear();
-            
             if(isYesterday) return 'Ontem';
             return d.toLocaleDateString();
         }
 
         // --- LÓGICA DE STATUS ---
-        let currentStories = {}; // { username: [story1, story2] }
+        let currentStories = {}; 
         let currentViewerUser = null;
         let currentStoryIndex = 0;
         let storyTimer = null;
@@ -401,9 +392,7 @@
             active = u;
             document.getElementById('chat_name').innerText = u;
             document.getElementById('chat_status').innerText = 'Carregando...'; 
-            
             updatePresenceUI(u);
-
             document.getElementById('chat_avatar').src = `https://ui-avatars.com/api/?name=${u}&background=random`;
             fetch('/user/'+u).then(r=>r.json()).then(ui => {
                  document.getElementById('chat_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
@@ -411,9 +400,7 @@
                  document.getElementById('info_avatar').src = ui.avatar || `https://ui-avatars.com/api/?name=${u}&background=random`;
                  document.getElementById('info_bio').innerText = ui.bio || "Sem recado";
             });
-
             document.getElementById('chat-room').classList.add('chat-open');
-            
             const msgs = await fetch(`/messages/${me.username}/${active}`).then(r=>r.json());
             document.getElementById('msg-container').innerHTML = '';
             msgs.forEach(addMsg);
@@ -484,12 +471,10 @@
 
             let ticks = '';
             if(isMe) ticks = getTickIcon(m.status);
-
-            // CORREÇÃO DE HORA: Se veio do socket (sem m.time ou com time raw), formata.
-            // Se for envio local imediato, usamos Agora.
+            
             let timeStr;
             if (m.f_time && m.f_time === 'Agora') {
-                timeStr = 'Agora'; // Mantém para feedback imediato
+                timeStr = 'Agora'; 
             } else {
                 timeStr = m.time ? formatTimeUTC(m.time) : new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
             }
@@ -511,7 +496,6 @@
             const i = document.getElementById('chat-input');
             const txt = i.value.trim();
             if(!txt) return;
-            // f_time: 'Agora' para UI otimista
             const data = { s:me.username, r:active, c:txt, type:'text', f_time: 'Agora' };
             socket.emit('send_msg', data);
             addMsg({...data, status:0}); 
@@ -552,7 +536,7 @@
             } else { rec.stop(); rec=null; document.getElementById('mic-btn').innerHTML = '<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>'; }
         }
 
-        // --- STATUS SYSTEM ---
+        // --- STATUS SYSTEM (CORRIGIDO) ---
         
         function openStatusCreator(mode) {
             statusDraft = { type: 'text', content: '', caption: '', bg_color: '#ff0055' };
@@ -592,10 +576,12 @@
                     const img = document.getElementById('st-img-preview');
                     img.src = r.result;
                     img.classList.remove('hidden');
+                    document.getElementById('st-video-preview').classList.add('hidden');
                 } else {
                     const vid = document.getElementById('st-video-preview');
                     vid.src = r.result;
                     vid.classList.remove('hidden');
+                    document.getElementById('st-img-preview').classList.add('hidden');
                 }
             };
             r.readAsDataURL(f);
@@ -638,7 +624,7 @@
             });
 
             const list = document.getElementById('status-list');
-            list.innerHTML = ''; // Limpa antes de renderizar para evitar duplicação
+            list.innerHTML = ''; 
             
             Object.keys(currentStories).forEach(u => {
                 if(u === me.username) return; 
@@ -688,8 +674,22 @@
             document.getElementById('story-viewer').classList.add('active');
         }
 
+        // LIMPEZA DE MÍDIA FANTASMA
+        function clearCurrentStoryMedia() {
+            const container = document.getElementById('sv-content');
+            const videos = container.querySelectorAll('video');
+            videos.forEach(v => {
+                v.pause();
+                v.src = "";
+                v.load();
+            });
+            container.innerHTML = '';
+        }
+
         function renderStory() {
             clearTimeout(storyTimer);
+            clearCurrentStoryMedia(); // Para o som anterior
+
             const userStories = currentStories[currentViewerUser];
             if(!userStories || currentStoryIndex >= userStories.length) {
                 closeStory();
@@ -703,7 +703,6 @@
             document.getElementById('sv-time').innerText = formatTimeUTC(story.time);
 
             const container = document.getElementById('sv-content');
-            container.innerHTML = '';
             
             if(story.type === 'text') {
                 container.style.backgroundColor = story.bg_color;
@@ -711,11 +710,32 @@
             } else {
                 container.style.backgroundColor = 'black';
                 if(story.type === 'video') {
-                    // Adicionei classe story-media para object-fit: contain
-                    container.innerHTML = `<video src="${story.content}" autoplay class="story-media"></video>`;
+                    // Video: não define timer fixo, espera metadados
+                    const vid = document.createElement('video');
+                    vid.src = story.content;
+                    vid.autoplay = true;
+                    vid.className = 'story-media';
+                    
+                    // IMPORTANTE: Só avança quando acabar
+                    vid.onended = nextStory; 
+                    
+                    // Atualiza a barra quando carregar a duração
+                    vid.onloadedmetadata = () => {
+                        updateProgressBars(currentStoryIndex, userStories.length, vid.duration * 1000);
+                    };
+
+                    container.appendChild(vid);
                 } else {
                     container.innerHTML = `<img src="${story.content}" class="story-media">`;
+                    updateProgressBars(currentStoryIndex, userStories.length, 5000);
+                    storyTimer = setTimeout(nextStory, 5000);
                 }
+            }
+            
+            // Se for texto (sem video), desenha a barra com tempo padrão
+            if(story.type === 'text') {
+                updateProgressBars(currentStoryIndex, userStories.length, 5000);
+                storyTimer = setTimeout(nextStory, 5000);
             }
 
             const capBox = document.getElementById('sv-caption');
@@ -733,30 +753,28 @@
                 document.getElementById('sv-footer').classList.add('hidden');
                 socket.emit('view_status', { story_id: story.id, viewer: me.username, owner: currentViewerUser });
             }
+        }
 
+        function updateProgressBars(currentIdx, total, durationMs) {
             const barsContainer = document.getElementById('story-bars');
             barsContainer.innerHTML = '';
-            userStories.forEach((_, idx) => {
+            for(let i=0; i<total; i++) {
                 const bar = document.createElement('div');
                 bar.className = 'story-progress-bar';
                 const fill = document.createElement('div');
                 fill.className = 'story-progress-fill';
                 
-                if(idx < currentStoryIndex) fill.style.width = '100%';
-                else if(idx === currentStoryIndex) {
+                if(i < currentIdx) {
+                    fill.style.width = '100%';
+                } else if(i === currentIdx) {
                     fill.style.width = '0%';
-                    fill.style.transition = 'width 5s linear';
-                    // Delay pequeno para animação CSS pegar
+                    fill.style.transition = `width ${durationMs}ms linear`;
                     setTimeout(() => fill.style.width = '100%', 10);
                 }
                 
                 bar.appendChild(fill);
                 barsContainer.appendChild(bar);
-            });
-
-            // Se for vídeo, tenta pegar duração, senão 5s
-            const duration = story.type === 'video' ? 10000 : 5000; 
-            storyTimer = setTimeout(nextStory, duration);
+            }
         }
 
         function nextStory() {
@@ -771,6 +789,7 @@
         }
         function closeStory() {
             clearTimeout(storyTimer);
+            clearCurrentStoryMedia(); // Garante que o som pare ao fechar
             document.getElementById('story-viewer').classList.remove('active');
             loadStatus();
         }
@@ -861,7 +880,6 @@
                     stDiv.innerText = 'Online';
                     stDiv.className = 'text-[12px] text-[#0A84FF] font-medium leading-tight';
                 } else {
-                    // Usa a hora do evento se disponível, senão agora
                     const time = data.last_seen ? formatTimeUTC(data.last_seen) : new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
                     stDiv.innerText = 'Visto por último hoje às ' + time;
                     stDiv.className = 'text-[11px] text-gray-400 leading-tight';
@@ -875,7 +893,6 @@
                 showViewers(); 
             }
         });
-
     </script>
 </body>
 </html>
