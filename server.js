@@ -18,11 +18,6 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
-// Rota principal para servir o index.html
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
 // Banco de Dados SQLite
 const db = new sqlite3.Database('chat_database.db');
 const USERS_FILE = path.join(__dirname, 'data', 'users.json');
@@ -36,50 +31,14 @@ const getUsers = () => {
     try {
         if (!fs.existsSync(USERS_FILE)) return [];
         const data = fs.readFileSync(USERS_FILE, 'utf8');
-        const parsed = JSON.parse(data || '[]');
-        return Array.isArray(parsed) ? parsed : [];
+        return JSON.parse(data || '[]');
     } catch (error) {
-        console.error("Erro ao ler users.json, resetando para lista vazia:", error.message);
-        fs.writeFileSync(USERS_FILE, '[]');
         return [];
     }
 };
 
 const saveUsers = (users) => {
-    try {
-        fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
-    } catch (error) {
-        console.error("Erro ao salvar users.json:", error.message);
-    }
-};
-
-const isValidBase64Image = (str) => {
-    if (!str || typeof str !== 'string') return false;
-    return /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(str);
-};
-
-const saveAvatarImage = (username, base64Data) => {
-    if (!isValidBase64Image(base64Data)) return '';
-    try {
-        const base64Image = base64Data.split(';base64,').pop();
-        const ext = base64Data.split(';')[0].split('/')[1];
-        const fileName = `${username}_${Date.now()}.${ext}`;
-        const filePath = path.join(__dirname, 'public/avatars', fileName);
-        
-        // Deletar avatar antigo se existir
-        const users = getUsers();
-        const user = users.find(u => u.username === username);
-        if (user && user.avatar && user.avatar.startsWith('/avatars/')) {
-            const oldPath = path.join(__dirname, 'public', user.avatar);
-            if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-        }
-
-        fs.writeFileSync(filePath, base64Image, { encoding: 'base64' });
-        return `/avatars/${fileName}`;
-    } catch (e) {
-        console.error("Erro ao salvar imagem:", e);
-        return '';
-    }
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 };
 
 // Inicializar Banco de Dados
@@ -105,17 +64,17 @@ db.serialize(() => {
         likes TEXT DEFAULT '[]',
         time DATETIME DEFAULT (datetime('now'))
     )`);
-    
-    db.run("CREATE INDEX IF NOT EXISTS idx_messages_users ON messages(s, r, time DESC)");
-    db.run("CREATE INDEX IF NOT EXISTS idx_stories_time ON stories(username, time DESC)");
+});
+
+// Rota principal
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Endpoints API
 app.post('/register', async (req, res) => {
     const { username, password } = req.body;
-    if (!username || !password || username.length < 3 || password.length < 4) {
-        return res.status(400).json({ ok: false, message: "Dados inválidos" });
-    }
+    if (!username || !password) return res.status(400).json({ ok: false, message: "Dados incompletos" });
     
     const users = getUsers();
     if (users.find(u => u.username.toLowerCase() === username.toLowerCase())) {
@@ -133,7 +92,7 @@ app.post('/register', async (req, res) => {
         last_seen: null
     });
     saveUsers(users);
-    res.json({ ok: true, message: "Usuário criado com sucesso" });
+    res.json({ ok: true });
 });
 
 app.post('/login', async (req, res) => {
@@ -158,6 +117,88 @@ app.get('/user/:username', (req, res) => {
     } else {
         res.status(404).json({ ok: false });
     }
+});
+
+app.get('/messages/:u1/:u2', (req, res) => {
+    const { u1, u2 } = req.params;
+    db.all("SELECT * FROM messages WHERE (s = ? AND r = ?) OR (s = ? AND r = ?) ORDER BY time ASC", [u1, u2, u2, u1], (err, rows) => {
+        if (err) return res.status(500).json([]);
+        res.json(rows);
+    });
+});
+
+app.get('/chats/:username', (req, res) => {
+    const { username } = req.params;
+    const query = `
+        SELECT 
+            CASE WHEN s = ? THEN r ELSE s END as contact,
+            c as last_msg,
+            time as last_time,
+            status as last_status,
+            s as last_s,
+            (SELECT COUNT(*) FROM messages WHERE r = ? AND s = contact AND status < 2) as unread
+        FROM messages 
+        WHERE id IN (
+            SELECT MAX(id) FROM messages WHERE s = ? OR r = ? GROUP BY CASE WHEN s = ? THEN r ELSE s END
+        )
+        ORDER BY time DESC
+    `;
+    db.all(query, [username, username, username, username, username], (err, rows) => {
+        if (err) return res.status(500).json([]);
+        
+        const users = getUsers();
+        const enriched = rows.map(row => {
+            const u = users.find(user => user.username === row.contact);
+            return { ...row, avatar: u ? u.avatar : '', is_verified: u ? u.is_verified : false, is_online: u ? u.is_online : false };
+        });
+        res.json(enriched);
+    });
+});
+
+app.post('/upload-avatar', (req, res) => {
+    const { username, image } = req.body;
+    if (!image || !username) return res.status(400).json({ ok: false });
+    
+    try {
+        const base64Image = image.split(';base64,').pop();
+        const ext = image.split(';')[0].split('/')[1];
+        const fileName = `${username}_${Date.now()}.${ext}`;
+        const filePath = path.join(__dirname, 'public/avatars', fileName);
+        
+        fs.writeFileSync(filePath, base64Image, { encoding: 'base64' });
+        const avatarUrl = `/avatars/${fileName}`;
+        
+        const users = getUsers();
+        const user = users.find(u => u.username === username);
+        if (user) {
+            user.avatar = avatarUrl;
+            saveUsers(users);
+        }
+        res.json({ ok: true, avatar: avatarUrl });
+    } catch (e) {
+        res.status(500).json({ ok: false });
+    }
+});
+
+app.post('/post-status', (req, res) => {
+    const { username, content, type, caption, bg_color } = req.body;
+    db.run("INSERT INTO stories (username, content, type, caption, bg_color) VALUES (?, ?, ?, ?, ?)", 
+        [username, content, type, caption, bg_color], (err) => {
+        if (err) return res.status(500).json({ ok: false });
+        res.json({ ok: true });
+    });
+});
+
+app.get('/get-status', (req, res) => {
+    db.all("SELECT * FROM stories WHERE time > datetime('now', '-1 day') ORDER BY time ASC", (err, rows) => {
+        if (err) return res.status(500).json([]);
+        const users = getUsers();
+        const enriched = rows.map(row => {
+            const u = users.find(user => user.username === row.username);
+            return { ...row, avatar: u ? u.avatar : '', is_verified: u ? u.is_verified : false };
+        });
+        res.json(enriched);
+    });
 });
 
 // Socket.IO
@@ -252,13 +293,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// Limpeza de stories antigos (>24h)
-setInterval(() => {
-    db.run("DELETE FROM stories WHERE time < datetime('now', '-1 day')");
-}, 3600000);
-
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
     console.log(`✅ Servidor rodando em http://localhost:${PORT}`);
-    console.log(`✅ Socket.IO ativo e aguardando conexões`);
 });
