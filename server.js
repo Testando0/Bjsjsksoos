@@ -166,7 +166,11 @@ io.on('connection', (socket) => {
             user.last_seen = null;
             saveUsers(users);
         }
+        // Emitir para todos que este usuário está online
         io.emit('user_status_change', { username, status: 'online' });
+        
+        // Enviar lista de usuários online para o usuário que acabou de entrar
+        socket.emit('online_list', Object.keys(onlineUsers));
         console.log(`${username} entrou online`);
     });
 
@@ -174,26 +178,29 @@ io.on('connection', (socket) => {
         if (!data || !data.s || !data.r || !data.c) return;
         
         const recipientSocketId = onlineUsers[data.r];
+        // Se o destinatário está online, status é 1 (entregue)
         const status = recipientSocketId ? 1 : 0; 
         
-        // Salva msg no SQLite com prepared statement (previne SQL injection)
         db.run(
             "INSERT INTO messages (s, r, c, type, status, time) VALUES (?, ?, ?, ?, ?, datetime('now'))", 
             [data.s, data.r, data.c, data.type || 'text', status], 
             function(err) {
-                if(err) {
-                    console.error("Erro ao salvar mensagem:", err.message);
-                    return;
-                }
+                if(err) return console.error("Erro ao salvar mensagem:", err.message);
                 
                 const msgId = this.lastID;
                 db.get("SELECT * FROM messages WHERE id = ?", [msgId], (e, row) => {
                     if(e || !row) return;
                     
+                    // Enviar para o destinatário
                     if(recipientSocketId) {
                         io.to(recipientSocketId).emit('new_msg', row);
                     }
+                    // Confirmar para o remetente
                     socket.emit('msg_sent_ok', row);
+                    
+                    // Notificar mudança nos chats para ambos
+                    if(recipientSocketId) io.to(recipientSocketId).emit('update_chat_list');
+                    socket.emit('update_chat_list');
                 });
             }
         );

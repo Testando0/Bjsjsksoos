@@ -16,9 +16,9 @@
             --text-secondary: #8E8E93;
             --separator: #2C2C2E;
             --accent-color: #0A84FF;
-            --bubble-me: #0A84FF;
-            --bubble-them: #2C2C2E;
-            --chat-bg-color: #0b141a;
+            --bubble-me: #FF3B30; /* Vermelho iOS Pro */
+            --bubble-them: #2C2C2E; /* Cinza Escuro iOS */
+            --chat-bg-color: #0B141A;
         }
 
         body, html { 
@@ -47,18 +47,21 @@
         
         /* BALÕES DE MENSAGEM */
         .msg-bubble { 
-            max-width: 75%; padding: 8px 12px; font-size: 16px; 
-            border-radius: 18px; margin-bottom: 4px; position: relative; 
-            color: #FFF; word-wrap: break-word;
+            max-width: 85%; padding: 6px 10px; font-size: 15px; 
+            border-radius: 8px; margin-bottom: 2px; position: relative; 
+            color: #E9EDEF; word-wrap: break-word;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
         }
         .msg-me { 
             background: var(--bubble-me); align-self: flex-end; 
-            border-radius: 18px 18px 4px 18px; margin-right: 10px; 
+            border-radius: 8px 0px 8px 8px; margin-right: 10px; 
         }
         .msg-them { 
             background: var(--bubble-them); align-self: flex-start; 
-            border-radius: 18px 18px 18px 4px; margin-left: 10px; 
+            border-radius: 0px 8px 8px 8px; margin-left: 10px; 
         }
+        .msg-media { padding: 3px !important; }
+        .msg-media img, .msg-media video { border-radius: 5px; display: block; width: 100%; }
         
         /* STATUS VIEWER */
         #story-viewer {
@@ -154,7 +157,7 @@
                 <div class="px-4 py-2 bg-[#161616]">
                     <input placeholder="Pesquisar" class="w-full bg-[#2C2C2E] text-white rounded-lg px-3 py-1.5 text-center outline-none placeholder-gray-500 focus:text-left focus:pl-3 transition-all">
                 </div>
-                <div id="chat-list" class="pl-4 border-t border-[#2C2C2E]"></div>
+                <div id="chat-list" class="border-t border-[#2C2C2E]"></div>
             </div>
 
             <div id="tab-status" class="hidden w-full min-h-full pb-20">
@@ -449,7 +452,7 @@
                     const time = c.last_time ? new Date(c.last_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
                     
                     return `
-                    <div onclick="openChat('${c.contact}')" class="flex items-center gap-3 py-3 pr-4 border-b border-[#2C2C2E] cursor-pointer bg-[#161616] active:bg-[#2C2C2E]">
+                    <div onclick="openChat('${c.contact}')" class="flex items-center gap-3 py-3 pl-4 pr-4 border-b border-[#2C2C2E] cursor-pointer bg-[#161616] active:bg-[#2C2C2E]">
                         <div class="relative">
                             <img src="${avatar}" class="w-14 h-14 rounded-full bg-gray-700 object-cover">
                             ${c.is_online ? '<div class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-[#161616]"></div>' : ''}
@@ -520,12 +523,13 @@
                     const time = new Date(m.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
                     
                     let content = '';
+                    let mediaClass = (m.type === 'image' || m.type === 'video') ? 'msg-media' : '';
                     if(m.type === 'text') {
-                        content = `<p>${escapeHtml(m.c)}</p>`;
+                        content = `<p class="leading-tight">${escapeHtml(m.c)}</p>`;
                     } else if(m.type === 'image') {
-                        content = `<img src="${m.c}" class="max-w-full rounded-lg">`;
+                        content = `<img src="${m.c}">`;
                     } else if(m.type === 'video') {
-                        content = `<video src="${m.c}" controls class="max-w-full rounded-lg"></video>`;
+                        content = `<video src="${m.c}" controls></video>`;
                     }
                     
                     let statusIcon = '';
@@ -536,9 +540,9 @@
                     }
                     
                     return `
-                    <div class="msg-bubble ${bubbleClass}">
+                    <div class="msg-bubble ${bubbleClass} ${mediaClass}">
                         ${content}
-                        <div class="text-[11px] text-gray-300 mt-1 text-right">
+                        <div class="text-[10px] text-gray-400 mt-1 text-right flex items-center justify-end gap-1">
                             ${time} ${statusIcon}
                         </div>
                     </div>`;
@@ -954,21 +958,7 @@
         // --- SOCKET EVENTS ---
         socket.on('new_msg', m => {
             if(active === m.s) {
-                const container = document.getElementById('msg-container');
-                const time = new Date(m.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-                
-                let content = '';
-                if(m.type === 'text') content = `<p>${escapeHtml(m.c)}</p>`;
-                else if(m.type === 'image') content = `<img src="${m.c}" class="max-w-full rounded-lg">`;
-                else if(m.type === 'video') content = `<video src="${m.c}" controls class="max-w-full rounded-lg"></video>`;
-                
-                container.innerHTML += `
-                <div class="msg-bubble msg-them">
-                    ${content}
-                    <div class="text-[11px] text-gray-300 mt-1 text-right">${time}</div>
-                </div>`;
-                
-                container.scrollTop = container.scrollHeight;
+                loadMessages(active);
                 socket.emit('mark_read', {s: m.s, r: me.username});
             }
             loadChats();
@@ -976,25 +966,20 @@
 
         socket.on('msg_sent_ok', m => {
             if(active === m.r) {
-                const container = document.getElementById('msg-container');
-                const time = new Date(m.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-                
-                let content = '';
-                if(m.type === 'text') content = `<p>${escapeHtml(m.c)}</p>`;
-                else if(m.type === 'image') content = `<img src="${m.c}" class="max-w-full rounded-lg">`;
-                else if(m.type === 'video') content = `<video src="${m.c}" controls class="max-w-full rounded-lg"></video>`;
-                
-                const statusIcon = m.status === 1 ? '<span class="tick-icon tick-sent">✓✓</span>' : '<span class="tick-icon tick-sent">✓</span>';
-                
-                container.innerHTML += `
-                <div class="msg-bubble msg-me">
-                    ${content}
-                    <div class="text-[11px] text-gray-300 mt-1 text-right">${time} ${statusIcon}</div>
-                </div>`;
-                
-                container.scrollTop = container.scrollHeight;
+                loadMessages(active);
             }
             loadChats();
+        });
+        
+        socket.on('update_chat_list', () => {
+            loadChats();
+        });
+        
+        socket.on('online_list', list => {
+            if(active && list.includes(active)) {
+                document.getElementById('chat_status').innerText = 'Online';
+                document.getElementById('chat_status').className = 'text-[12px] text-[#0A84FF] font-medium leading-tight';
+            }
         });
 
         socket.on('msgs_read_update', d => { 
