@@ -1,7 +1,7 @@
 {
-  "name": "whatsapp-ios-clone",
-  "version": "3.1.0",
-  "description": "Chat Profissional estilo iOS",
+  "name": "whatsapp-ios-pro-perfeito",
+  "version": "4.0.0",
+  "description": "Rede Social Profissional Perfeita - Design iOS Vermelho e Preto",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
