@@ -64,6 +64,8 @@ db.serialize(() => {
         likes TEXT DEFAULT '[]',
         time DATETIME DEFAULT (datetime('now'))
     )`);
+    
+    db.run("CREATE INDEX IF NOT EXISTS idx_messages_users ON messages(s, r, time DESC)");
 });
 
 // Rota principal
@@ -114,6 +116,19 @@ app.get('/user/:username', (req, res) => {
     if (user) {
         const { password, ...userWithoutPassword } = user;
         res.json(userWithoutPassword);
+    } else {
+        res.status(404).json({ ok: false });
+    }
+});
+
+app.post('/update-bio', (req, res) => {
+    const { username, bio } = req.body;
+    const users = getUsers();
+    const user = users.find(u => u.username === username);
+    if (user) {
+        user.bio = bio;
+        saveUsers(users);
+        res.json({ ok: true });
     } else {
         res.status(404).json({ ok: false });
     }

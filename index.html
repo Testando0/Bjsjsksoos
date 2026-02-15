@@ -110,6 +110,15 @@
             border-radius: 50%; width: 20px; height: 20px; animation: spin 0.8s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Correção de alinhamento do cabeçalho */
+        .header-ios {
+            height: 110px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: 10px;
+        }
     </style>
 </head>
 <body>
@@ -124,25 +133,31 @@
     </div>
 
     <div id="main-app" class="hidden">
-        <header class="bg-[#161616] border-b border-[#2C2C2E] pt-12 pb-3 px-4 flex justify-between items-center shrink-0">
-            <button class="text-[#FF3B30] text-[17px]">Editar</button>
-            <h1 id="header-title" class="font-bold text-[18px] text-white">Conversas</h1>
-            <button onclick="document.getElementById('new-chat-modal').classList.remove('hidden')" class="text-[#FF3B30]">
-                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-            </button>
+        <header class="bg-[#161616] border-b border-[#2C2C2E] header-ios px-4 shrink-0">
+            <div class="flex justify-between items-center w-full mb-2">
+                <button class="text-[#FF3B30] text-[17px]">Editar</button>
+                <button onclick="document.getElementById('new-chat-modal').classList.remove('hidden')" class="text-[#FF3B30]">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </button>
+            </div>
+            <h1 id="header-title" class="font-bold text-[34px] text-white">Conversas</h1>
         </header>
 
         <div class="flex-1 overflow-y-auto">
             <div id="tab-chats" class="w-full">
                 <div class="px-4 py-2 bg-[#161616]">
-                    <input placeholder="Pesquisar" class="w-full bg-[#2C2C2E] text-white rounded-lg px-3 py-1.5 text-center outline-none">
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </span>
+                        <input placeholder="Pesquisar" class="w-full bg-[#2C2C2E] text-white rounded-lg pl-10 pr-3 py-1.5 outline-none">
+                    </div>
                 </div>
                 <div id="chat-list" class="border-t border-[#2C2C2E]"></div>
             </div>
 
             <div id="tab-status" class="hidden w-full">
-                <h1 class="text-3xl font-bold px-4 py-4 text-white">Status</h1>
-                <div class="bg-[#1C1C1E] px-4 py-3 flex items-center gap-3 border-y border-[#2C2C2E]">
+                <div class="bg-[#1C1C1E] px-4 py-3 flex items-center gap-3 border-y border-[#2C2C2E] mt-4">
                      <div class="relative" onclick="checkMyStatus()">
                         <img id="my_status_pic" class="w-14 h-14 rounded-full bg-gray-700 object-cover">
                         <button onclick="event.stopPropagation(); openStatusCreator()" class="absolute bottom-0 right-0 bg-[#FF3B30] rounded-full p-1 border-2 border-[#1C1C1E] text-white">
@@ -159,8 +174,7 @@
             </div>
 
             <div id="tab-settings" class="hidden w-full">
-                <h1 class="text-3xl font-bold px-4 py-4 text-white">Ajustes</h1>
-                <div class="bg-[#1C1C1E] border-y border-[#2C2C2E] flex items-center p-4 gap-4 mb-8 cursor-pointer" onclick="document.getElementById('avatar_file').click()">
+                <div class="bg-[#1C1C1E] border-y border-[#2C2C2E] flex items-center p-4 gap-4 mb-8 mt-4 cursor-pointer" onclick="document.getElementById('avatar_file').click()">
                     <img id="settings_avatar" class="w-16 h-16 rounded-full bg-gray-700 object-cover">
                     <div class="flex-1">
                         <h2 id="settings_name" class="text-xl font-semibold text-white">User</h2>
@@ -168,6 +182,12 @@
                     </div>
                     <input type="file" id="avatar_file" hidden accept="image/*" onchange="updateProfilePic(event)">
                 </div>
+                
+                <div class="bg-[#1C1C1E] border-y border-[#2C2C2E] p-4 mb-8">
+                    <label class="text-xs text-gray-500 uppercase">Recado</label>
+                    <input id="settings_bio" class="w-full mt-1 text-[17px] bg-transparent text-white outline-none" onblur="saveBio(this.value)">
+                </div>
+
                 <button onclick="logout()" class="w-full bg-[#1C1C1E] p-4 text-[#FF3B30] text-lg border-y border-[#2C2C2E] text-left">Sair</button>
             </div>
         </div>
@@ -325,6 +345,40 @@
             document.getElementById('my_status_pic').src = avatar;
             document.getElementById('settings_avatar').src = avatar;
             document.getElementById('settings_name').innerText = me.username;
+            document.getElementById('settings_bio').value = me.bio || '';
+        }
+
+        async function saveBio(bio) {
+            if(!me) return;
+            try {
+                await fetch('/update-bio', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: me.username, bio })
+                });
+                me.bio = bio;
+                localStorage.setItem('chat_user', JSON.stringify(me));
+            } catch(e) {}
+        }
+
+        async function updateProfilePic(e) {
+            const file = e.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                const res = await fetch('/upload-avatar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: me.username, image: ev.target.result })
+                });
+                const data = await res.json();
+                if(data.ok) {
+                    me.avatar = data.avatar;
+                    localStorage.setItem('chat_user', JSON.stringify(me));
+                    updateMeUI();
+                }
+            };
+            reader.readAsDataURL(file);
         }
 
         function logout() {
@@ -382,6 +436,21 @@
             } catch(e) {}
         }
 
+        async function startChat() {
+            const u = document.getElementById('new-chat-user').value.trim();
+            if(!u) return;
+            try {
+                const res = await fetch('/user/' + u);
+                if(res.ok) {
+                    document.getElementById('new-chat-modal').classList.add('hidden');
+                    document.getElementById('new-chat-user').value = '';
+                    openChat(u);
+                } else {
+                    alert("Usuário não encontrado");
+                }
+            } catch(e) { alert("Erro ao buscar usuário"); }
+        }
+
         async function openChat(u) {
             active = u;
             document.getElementById('chat-room').classList.add('chat-open');
@@ -437,6 +506,22 @@
             socket.emit('send_msg', msg);
             input.innerText = '';
             toggleSendBtn();
+        }
+
+        async function sendMedia(e) {
+            const file = e.target.files[0];
+            if(!file || !active) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const msg = {
+                    s: me.username,
+                    r: active,
+                    c: ev.target.result,
+                    type: file.type.startsWith('image') ? 'image' : 'video'
+                };
+                socket.emit('send_msg', msg);
+            };
+            reader.readAsDataURL(file);
         }
 
         function toggleSendBtn() {
@@ -569,6 +654,10 @@
             e.stopPropagation();
             const s = currentStories[currentStoryIndex];
             socket.emit('like_story', { storyId: s.id, username: me.username });
+        }
+
+        function setBg(color) {
+            document.getElementById('sc-preview').style.background = color;
         }
 
         // --- SOCKET EVENTS ---
