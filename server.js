@@ -18,6 +18,11 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
+// Rota principal para servir o index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // Banco de Dados SQLite
 const db = new sqlite3.Database('chat_database.db');
 const USERS_FILE = path.join(__dirname, 'data', 'users.json');
