@@ -47,18 +47,28 @@
         
         /* BALÕES DE MENSAGEM */
         .msg-bubble { 
-            max-width: 85%; padding: 6px 10px; font-size: 15px; 
-            border-radius: 8px; margin-bottom: 2px; position: relative; 
+            max-width: 85%; padding: 6px 10px; font-size: 16px; 
+            margin-bottom: 2px; position: relative; 
             color: #E9EDEF; word-wrap: break-word;
             box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
         }
         .msg-me { 
             background: var(--bubble-me); align-self: flex-end; 
-            border-radius: 8px 0px 8px 8px; margin-right: 10px; 
+            border-radius: 12px 12px 0px 12px; margin-right: 12px; 
+        }
+        .msg-me::after {
+            content: ""; position: absolute; right: -8px; top: 0;
+            width: 12px; height: 12px; background: var(--bubble-me);
+            clip-path: polygon(0 0, 0 100%, 100% 0);
         }
         .msg-them { 
             background: var(--bubble-them); align-self: flex-start; 
-            border-radius: 0px 8px 8px 8px; margin-left: 10px; 
+            border-radius: 12px 12px 12px 0px; margin-left: 12px; 
+        }
+        .msg-them::after {
+            content: ""; position: absolute; left: -8px; top: 0;
+            width: 12px; height: 12px; background: var(--bubble-them);
+            clip-path: polygon(100% 0, 100% 100%, 0 0);
         }
         .msg-media { padding: 3px !important; }
         .msg-media img, .msg-media video { border-radius: 5px; display: block; width: 100%; }
@@ -82,6 +92,17 @@
         .story-progress-fill {
             height: 100%; background: white; width: 0%; transition: width 0.1s linear;
         }
+        .story-footer {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 20px; background: linear-gradient(transparent, rgba(0,0,0,0.8));
+            display: flex; align-items: center; gap: 15px; z-index: 100;
+        }
+        .story-input {
+            flex: 1; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 25px; padding: 10px 20px; color: white; outline: none;
+        }
+        .story-like-btn { font-size: 24px; cursor: pointer; transition: transform 0.2s; }
+        .story-like-btn.liked { color: #FF3B30; transform: scale(1.2); }
         
         .story-media {
             width: 100%; height: 100%; object-fit: contain; display: block;
@@ -100,7 +121,7 @@
         }
 
         /* STATUS RING */
-        .status-ring { padding: 2px; border-radius: 50%; border: 2px solid #0A84FF; }
+        .status-ring { padding: 2px; border-radius: 50%; border: 2px solid #FF3B30; }
         .status-ring-viewed { border-color: #545458; }
 
         /* UTILITÁRIOS */
@@ -111,7 +132,7 @@
         .input-dark { background-color: #2C2C2E; color: white; border: none; }
         .input-dark::placeholder { color: #8E8E93; }
         
-        .tick-icon { font-size: 11px; margin-left: 3px; font-weight: bold; letter-spacing: -1px; }
+        .tick-icon { font-size: 14px; margin-right: 4px; font-weight: normal; letter-spacing: -1px; }
         .tick-read { color: #34B7F1; }
         .tick-sent { color: #8E8E93; }
         
@@ -262,16 +283,22 @@
 
         <div id="sv-content" class="absolute inset-0 flex items-center justify-center bg-black"></div>
         
-        <div id="sv-caption-container" class="absolute bottom-16 left-0 right-0 p-4 text-center z-20 pointer-events-none">
+        <div id="sv-caption-container" class="absolute bottom-24 left-0 right-0 p-4 text-center z-20 pointer-events-none">
              <p id="sv-caption" class="text-white bg-black/50 p-2 rounded-lg inline-block text-lg pointer-events-auto"></p>
         </div>
 
         <div class="absolute inset-0 flex z-10">
-            <div class="w-1/3 h-full" onclick="prevStory()"></div>
-            <div class="w-2/3 h-full" onclick="nextStory()"></div>
+            <div class="w-1/4 h-full" onclick="prevStory()"></div>
+            <div class="w-2/4 h-full" onclick="nextStory()"></div>
+            <div class="w-1/4 h-full" onclick="nextStory()"></div>
         </div>
 
-        <div id="sv-footer" class="absolute bottom-0 w-full p-4 pb-safe bg-black/40 backdrop-blur z-30 hidden flex justify-center">
+        <div class="story-footer">
+            <input type="text" id="story-reply-input" placeholder="Responder..." class="story-input" onclick="event.stopPropagation()">
+            <div id="story-like-btn" onclick="likeStory(event)" class="story-like-btn">❤️</div>
+        </div>
+
+        <div id="sv-footer" class="absolute bottom-24 w-full p-4 pb-safe bg-black/40 backdrop-blur z-30 hidden flex justify-center">
             <button onclick="showViewers()" class="flex flex-col items-center text-white pointer-events-auto">
                 <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                 <span class="text-xs" id="sv-view-count">0 views</span>
@@ -446,27 +473,36 @@
                     listEl.innerHTML = '<p class="text-gray-500 text-center py-8">Nenhuma conversa ainda</p>';
                     return;
                 }
-                
-                listEl.innerHTML = d.map(c => {
+                          listEl.innerHTML = d.map(c => {
                     const avatar = c.avatar || `https://ui-avatars.com/api/?name=${c.contact}`;
                     const time = c.last_time ? new Date(c.last_time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '';
-                    
+                    let statusIcon = '';
+                    if(c.last_s === me.username) {
+                        if(c.last_status === 2) statusIcon = '<span class="tick-icon tick-read">✓✓</span>';
+                        else if(c.last_status === 1) statusIcon = '<span class="tick-icon tick-sent">✓✓</span>';
+                        else statusIcon = '<span class="tick-icon tick-sent">✓</span>';
+                    }
+
                     return `
                     <div onclick="openChat('${c.contact}')" class="flex items-center gap-3 py-3 pl-4 pr-4 border-b border-[#2C2C2E] cursor-pointer bg-[#161616] active:bg-[#2C2C2E]">
-                        <div class="relative">
+                        <div class="relative shrink-0">
                             <img src="${avatar}" class="w-14 h-14 rounded-full bg-gray-700 object-cover">
                             ${c.is_online ? '<div class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-[#161616]"></div>' : ''}
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex justify-between">
+                        <div class="flex-1 min-w-0 flex flex-col justify-center h-14">
+                            <div class="flex justify-between items-baseline">
                                 <h3 class="font-bold text-[17px] text-white truncate flex items-center">
                                     ${c.contact} ${getVerifiedIcon(c.is_verified)}
                                 </h3>
-                                <span class="text-sm text-gray-500">${time}</span>
+                                <span class="text-[13px] ${c.unread > 0 ? 'text-[#FF3B30]' : 'text-gray-500'} shrink-0 font-medium">${time}</span>
                             </div>
-                            <p class="text-gray-400 truncate text-sm">${c.last_msg || ''}</p>
+                            <div class="flex justify-between items-center mt-1">
+                                <p class="text-[14px] text-gray-500 truncate pr-2 flex items-center leading-tight">
+                                    ${statusIcon} ${c.last_msg || 'Nenhuma mensagem'}
+                                </p>
+                                ${c.unread > 0 ? `<span class="bg-[#FF3B30] text-white text-[12px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] h-[20px] flex items-center justify-center shrink-0">${c.unread}</span>` : ''}
+                            </div>
                         </div>
-                        ${c.unread > 0 ? `<span class="bg-[#FF3B30] text-white text-xs rounded-full px-2 py-0.5 font-bold">${c.unread}</span>` : ''}
                     </div>`;
                 }).join('');
             } catch(e) {
@@ -658,6 +694,31 @@
             viewStory(me.username);
         }
 
+        function likeStory(e) {
+            if(e) e.stopPropagation();
+            const currentStory = currentStories[currentStoryIndex];
+            if(!currentStory) return;
+            socket.emit('like_story', { storyId: currentStory.id, username: me.username });
+        }
+
+        document.getElementById('story-reply-input')?.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter' && e.target.value.trim()) {
+                const currentStory = currentStories[currentStoryIndex];
+                if(!currentStory) return;
+                
+                const replyText = e.target.value.trim();
+                const msg = {
+                    s: me.username,
+                    r: currentStory.username,
+                    c: `Respondeu ao seu status: "${replyText}"`,
+                    type: 'text'
+                };
+                socket.emit('send_msg', msg);
+                e.target.value = '';
+                alert('Resposta enviada!');
+            }
+        });
+
         async function viewStory(username) {
             try {
                 const allStories = await fetch('/get-status').then(r=>r.json());
@@ -709,10 +770,18 @@
             const caption = story.caption || '';
             document.getElementById('sv-caption').innerText = caption;
             document.getElementById('sv-caption-container').style.display = caption ? 'block' : 'none';
-            
-            updateProgressBars();
+                        updateProgressBars();
             startStoryTimer();
-            
+
+            // Atualizar botão de like
+            const likeBtn = document.getElementById('story-like-btn');
+            const likes = JSON.parse(story.likes || '[]');
+            if(likes.includes(me.username)) {
+                likeBtn.classList.add('liked');
+            } else {
+                likeBtn.classList.remove('liked');
+            }
+        }    
             if(story.username !== me.username) {
                 socket.emit('view_status', {viewer: me.username, owner: story.username, story_id: story.id});
             }
@@ -962,15 +1031,26 @@
                 socket.emit('mark_read', {s: m.s, r: me.username});
             }
             loadChats();
-        });
-
-        socket.on('msg_sent_ok', m => {
-            if(active === m.r) {
+           socket.on('msgs_read_update', d => { 
+            if(active === d.reader) {
                 loadMessages(active);
             }
             loadChats();
         });
-        
+
+        socket.on('story_liked', d => {
+            const story = currentStories.find(s => s.id === d.storyId);
+            if(story) story.likes = d.likes;
+            
+            if(currentStories[currentStoryIndex] && currentStories[currentStoryIndex].id === d.storyId) {
+                const likeBtn = document.getElementById('story-like-btn');
+                if(d.likes.includes(me.username)) {
+                    likeBtn.classList.add('liked');
+                } else {
+                    likeBtn.classList.remove('liked');
+                }
+            }
+        });        
         socket.on('update_chat_list', () => {
             loadChats();
         });
