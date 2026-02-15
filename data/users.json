@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "username": "Redzin",
+    "password": "$2a$10$4o8KkSQxikDIbWSc3u8cH.NrFd34IzGH2uGOiuSjfDW63gs.GKi2a",
+    "bio": "Olá! Estou usando o Chat.",
+    "avatar": "",
+    "is_verified": true,
+    "is_online": false,
+    "last_seen": null
+  }
+]
